@@ -55,6 +55,7 @@ class FakeNatalService:
 class FakeTransitService:
     def __init__(self) -> None:
         self.queries = []
+        self.position_calls = []
 
     def search(self, query) -> list[AspectEvent]:
         self.queries.append(query)
@@ -77,6 +78,13 @@ class FakeTransitService:
         if person_id is None:
             return list(reversed(self.queries))
         return [query for query in reversed(self.queries) if query.person_id == person_id]
+
+    def calculate_positions(self, at_dt_utc, bodies) -> list[PlanetPosition]:
+        self.position_calls.append((at_dt_utc, bodies))
+        return [
+            PlanetPosition("Sun", 15.0, "Aries", 15.0, False, None),
+            PlanetPosition("Moon", 82.0, "Gemini", 22.0, False, None),
+        ]
 
 
 class FakeLocationLookupService:
@@ -145,6 +153,13 @@ def test_main_window_client_and_natal_workflow(tmp_path) -> None:
     assert natal_view._aspects_table.rowCount() == 1
     assert natal_view._chart_widget.chart is not None
     assert "calculated and saved" in natal_view._status_label.text().lower()
+
+    natal_view._show_transits_button.click()
+    application.processEvents()
+
+    assert len(natal_view._chart_widget._transit_positions) == 2
+    assert len(transit_service.position_calls) == 1
+    assert "transit overlay updated" in natal_view._status_label.text().lower()
 
     window._navigation.setCurrentRow(2)
     application.processEvents()

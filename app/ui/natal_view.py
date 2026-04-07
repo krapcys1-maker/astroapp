@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from PySide6.QtCore import QDate, QTime
 from PySide6.QtWidgets import (
     QComboBox,
+    QDateEdit,
     QFileDialog,
     QFormLayout,
     QFrame,
@@ -14,6 +16,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
+    QTimeEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -22,7 +25,9 @@ from app.models.chart import Chart
 from app.models.chart_settings import NatalChartSettings
 from app.services.natal_service import NatalService
 from app.services.person_service import PersonService
+from app.services.transit_service import TransitService
 from app.ui.widgets import NatalChartWidget
+from app.utils.time_utils import local_datetime_to_utc
 
 
 class NatalView(QWidget):
@@ -30,12 +35,16 @@ class NatalView(QWidget):
         self,
         person_service: PersonService,
         natal_service: NatalService | None,
+        transit_service: TransitService | None = None,
         natal_error: str | None = None,
+        transit_error: str | None = None,
     ) -> None:
         super().__init__()
         self._person_service = person_service
         self._natal_service = natal_service
+        self._transit_service = transit_service
         self._natal_error = natal_error
+        self._transit_error = transit_error
         self._build_ui()
         self.refresh_people()
 
@@ -126,6 +135,31 @@ class NatalView(QWidget):
         actions.addWidget(self._export_button)
         controls_layout.addLayout(actions)
 
+        transit_group = QGroupBox("Transit overlay")
+        transit_layout = QFormLayout(transit_group)
+        transit_layout.setContentsMargins(16, 18, 16, 16)
+        transit_layout.setSpacing(10)
+        self._transit_date_input = QDateEdit()
+        self._transit_date_input.setCalendarPopup(True)
+        self._transit_date_input.setDate(QDate.currentDate())
+        self._transit_time_input = QTimeEdit()
+        self._transit_time_input.setTime(QTime.currentTime())
+        self._transit_timezone_label = QLabel("Uses the selected client's timezone")
+        transit_actions = QHBoxLayout()
+        self._show_transits_button = QPushButton("Show transit overlay")
+        self._show_transits_button.setObjectName("secondaryButton")
+        self._show_transits_button.clicked.connect(self._show_transit_overlay)
+        self._clear_transits_button = QPushButton("Clear overlay")
+        self._clear_transits_button.setObjectName("secondaryButton")
+        self._clear_transits_button.clicked.connect(self._clear_transit_overlay)
+        transit_actions.addWidget(self._show_transits_button)
+        transit_actions.addWidget(self._clear_transits_button)
+        transit_layout.addRow("Date", self._transit_date_input)
+        transit_layout.addRow("Time", self._transit_time_input)
+        transit_layout.addRow("Timezone", self._transit_timezone_label)
+        transit_layout.addRow("", transit_actions)
+        controls_layout.addWidget(transit_group)
+
         self._status_label = QLabel("")
         self._status_label.setObjectName("statusBanner")
         self._status_label.setWordWrap(True)
@@ -187,6 +221,8 @@ class NatalView(QWidget):
         self._calculate_button.setEnabled(service_available)
         self._refresh_button.setEnabled(service_available)
         self._export_button.setEnabled(False)
+        self._show_transits_button.setEnabled(self._transit_service is not None)
+        self._clear_transits_button.setEnabled(False)
         if not service_available and self._natal_error:
             self._set_status(self._natal_error)
 
@@ -261,6 +297,44 @@ class NatalView(QWidget):
             self._set_status("Natal chart export failed.")
         return exported
 
+    def _show_transit_overlay(self) -> None:
+        if self._chart_widget.chart is None:
+            self._set_status("Calculate or load a natal chart before showing transits.")
+            return
+        if self._transit_service is None:
+            self._set_status(self._transit_error or "Transit service is unavailable.")
+            return
+        person_id = self.current_person_id()
+        if person_id is None:
+            self._set_status("Select a client first.")
+            return
+        profile = self._person_service.get_profile(person_id)
+        if profile is None or profile.birth_data is None:
+            self._set_status("This client does not have birth data yet.")
+            return
+        transit_dt_utc = local_datetime_to_utc(
+            self._transit_date_input.date().toPython(),
+            self._transit_time_input.time().toPython(),
+            profile.birth_data.timezone_name,
+        )
+        positions = self._transit_service.calculate_positions(
+            transit_dt_utc,
+            tuple(position.body for position in self._chart_widget.chart.planet_positions),
+        )
+        self._chart_widget.set_transit_positions(positions)
+        self._clear_transits_button.setEnabled(True)
+        self._set_status(
+            "Transit overlay updated for "
+            f"{self._transit_date_input.date().toString('yyyy-MM-dd')} "
+            f"{self._transit_time_input.time().toString('HH:mm')} "
+            f"({profile.birth_data.timezone_name})."
+        )
+
+    def _clear_transit_overlay(self) -> None:
+        self._chart_widget.set_transit_positions([])
+        self._clear_transits_button.setEnabled(False)
+        self._set_status("Transit overlay cleared.")
+
     def _populate_chart(self, chart: Chart) -> None:
         self._meta_label.setText(
             f"Calculated at {chart.calculated_at.isoformat()} | "
@@ -303,12 +377,16 @@ class NatalView(QWidget):
             for column_index, value in enumerate(values):
                 self._aspects_table.setItem(row_index, column_index, QTableWidgetItem(value))
         self._chart_widget.set_chart(chart)
+        self._chart_widget.set_transit_positions([])
         self._export_button.setEnabled(True)
+        self._clear_transits_button.setEnabled(False)
 
     def _clear_tables(self) -> None:
         self._meta_label.setText("No chart loaded.")
         self._chart_widget.set_chart(None)
+        self._chart_widget.set_transit_positions([])
         self._export_button.setEnabled(False)
+        self._clear_transits_button.setEnabled(False)
         for table in (self._planets_table, self._houses_table, self._aspects_table):
             table.setRowCount(0)
 

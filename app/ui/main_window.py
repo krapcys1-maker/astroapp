@@ -98,7 +98,9 @@ class MainWindow(QMainWindow):
         self._natal_view = NatalView(
             self._person_service,
             self._natal_service,
+            transit_service=self._transit_service,
             natal_error=self._natal_error,
+            transit_error=self._transit_error,
         )
         self._transit_view = TransitSearchView(
             self._person_service,

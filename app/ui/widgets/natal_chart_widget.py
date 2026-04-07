@@ -51,6 +51,7 @@ class NatalChartWidget(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._chart: Chart | None = None
+        self._transit_positions = []
         self.setObjectName("natalChartWheel")
         self.setMinimumHeight(480)
 
@@ -60,6 +61,12 @@ class NatalChartWidget(QWidget):
 
     def set_chart(self, chart: Chart | None) -> None:
         self._chart = chart
+        if chart is None:
+            self._transit_positions = []
+        self.update()
+
+    def set_transit_positions(self, positions: list) -> None:
+        self._transit_positions = list(positions)
         self.update()
 
     def export_png(self, path: Path) -> bool:
@@ -116,6 +123,13 @@ class NatalChartWidget(QWidget):
         )
         placements = self._draw_planets(painter, center, planet_marker_radius, ascendant)
         self._draw_aspects(painter, placements)
+        self._draw_transit_positions(
+            painter,
+            center,
+            outer_radius - 10,
+            outer_radius + 18,
+            ascendant,
+        )
 
     def _draw_empty_state(self, painter: QPainter) -> None:
         painter.setPen(QPen(QColor("#8d877d"), 1))
@@ -317,6 +331,58 @@ class NatalChartWidget(QWidget):
             color = ASPECT_COLORS.get(aspect.aspect_type, QColor("#888888"))
             painter.setPen(QPen(color, 1.2))
             painter.drawLine(point_a, point_b)
+
+    def _draw_transit_positions(
+        self,
+        painter: QPainter,
+        center: QPointF,
+        marker_radius: float,
+        label_radius: float,
+        ascendant: float,
+    ) -> None:
+        if not self._transit_positions:
+            return
+        painter.setPen(QPen(QColor("#c86a2b"), 1.2))
+        painter.setBrush(QColor("#fff1e8"))
+        clusters = self._cluster_positions(
+            sorted(self._transit_positions, key=lambda item: item.longitude)
+        )
+        for cluster in clusters:
+            count = len(cluster)
+            for index, position in enumerate(cluster):
+                marker_point = self._point_on_circle(
+                    center,
+                    marker_radius,
+                    position.longitude,
+                    ascendant,
+                )
+                painter.drawEllipse(marker_point, 4.0, 4.0)
+
+                tangential_shift = (index - (count - 1) / 2) * 16
+                label_anchor = self._point_on_circle(
+                    center,
+                    label_radius,
+                    position.longitude,
+                    ascendant,
+                )
+                label_point = self._offset_tangent(
+                    label_anchor,
+                    position.longitude,
+                    ascendant,
+                    tangential_shift,
+                )
+                painter.setPen(QPen(QColor("#d3864c"), 0.9))
+                painter.drawLine(marker_point, label_point)
+
+                painter.setPen(QPen(QColor("#c86a2b"), 1.0))
+                painter.setBrush(QColor("#fff1e8"))
+                label_rect = QRectF(label_point.x() - 20, label_point.y() - 10, 40, 20)
+                painter.drawRoundedRect(label_rect, 8, 8)
+                painter.drawText(
+                    QRectF(label_point.x() - 18, label_point.y() - 9, 36, 18),
+                    Qt.AlignmentFlag.AlignCenter,
+                    PLANET_ABBREVIATIONS.get(position.body, position.body[:2]),
+                )
 
     @staticmethod
     def _point_on_circle(

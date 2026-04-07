@@ -7,8 +7,10 @@ from app.engine.ephemeris import EphemerisBackend
 from app.engine.transit import AspectScanner, TransitPositionSampler
 from app.models.aspect_event import AspectEvent
 from app.models.chart import Chart
+from app.models.planet_position import PlanetPosition
 from app.models.transit_query import TransitQuery
 from app.storage.repositories import ChartRepository, TransitQueryRepository
+from app.utils.angle_utils import degree_in_sign, zodiac_sign
 
 
 class TransitService:
@@ -52,6 +54,26 @@ class TransitService:
         if self._queries is None:
             return []
         return self._queries.list_recent(person_id=person_id, limit=limit)
+
+    def calculate_positions(
+        self,
+        at_dt_utc: datetime,
+        bodies: tuple[str, ...],
+    ) -> list[PlanetPosition]:
+        positions: list[PlanetPosition] = []
+        for body in bodies:
+            position = self._backend.get_planet_longitude(at_dt_utc, body)
+            positions.append(
+                PlanetPosition(
+                    body=body,
+                    longitude=position.longitude,
+                    sign=zodiac_sign(position.longitude),
+                    degree_in_sign=degree_in_sign(position.longitude),
+                    retrograde=position.retrograde,
+                    house=None,
+                )
+            )
+        return positions
 
     def _get_required_natal_chart(self, person_id: int) -> Chart:
         if self._charts is None:
