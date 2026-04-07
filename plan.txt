@@ -1,0 +1,467 @@
+Tak. Najszybsza sensowna droga to jedna docelowa apka desktopowa, ale budowana etapami. Dla open source najrozsądniejszy rdzeń to Swiss Ephemeris jako silnik astronomiczny, spięty w Pythonie przez pysweph; sama Swiss Ephemeris jest narzędziem dla programistów, opiera się na danych JPL DE431 i działa w modelu AGPL albo licencja komercyjna, a pysweph linkuje bezpośrednio do oficjalnej biblioteki C Swiss Ephemeris. PySide6 to oficjalne bindingi Qt dla Pythona i ma wariant open source, więc dobrze pasuje do desktopu.
+
+1. Decyzje na start
+
+To budujemy:
+jedną apkę desktopową dla astrologii, która docelowo ma zastąpić Astro-Seek w Waszym workflow.
+
+To bierzemy:
+
+silnik: Swiss Ephemeris przez pysweph
+GUI: PySide6
+testy: pytest
+lint/format: ruff
+pakowanie do EXE: PyInstaller
+czas/strefy: zoneinfo ze standardowej biblioteki + timezonefinder
+miasto → współrzędne: geopy z cache lokalnym.
+
+Licencja repo:
+daj od razu AGPL-3.0. Nie kombinuj. Jeśli bierzesz Swiss Ephemeris i/lub wrappery AGPL, to i tak w tę stronę idziesz. Kerykeion też dziś deklaruje AGPL-3.0, więc jako główną zależność nic Ci tu nie upraszcza licencyjnie.
+
+2. Czego nie robimy
+
+Nie budujemy własnego silnika od zera.
+Nie robimy od razu wszystkich technik astrologicznych.
+Nie robimy od razu pięknego wheel chartu.
+Nie opieramy core na Kerykeionie.
+
+Powód jest prosty: najszybciej dowieziesz własną apkę, jeśli weźmiesz Swiss bezpośrednio i sam zbudujesz logikę aplikacji wokół niego. Kerykeion umie liczyć pozycje, aspekty i SVG charty, ale skoro chcesz własny program i własny workflow, lepiej mieć pełną kontrolę nad modelem danych i logiką wyszukiwania aspektów.
+
+3. Jak apka ma wyglądać
+
+Docelowy układ:
+
+Lewy panel
+
+Klienci
+Natal Chart
+Transit Search
+Saved Searches
+Settings
+
+Główne ekrany
+
+A. Clients
+lista osób
+dodaj/edytuj osobę
+dane urodzeniowe
+notatki
+zapis lokalny
+B. Natal Chart
+tabela planet
+tabela domów
+tabela aspektów natalnych
+podstawowe podsumowanie
+później wheel chart
+C. Transit Search
+wybór osoby
+zakres dat od–do
+wybór planet tranzytujących
+wybór punktów natalnych
+wybór aspektów
+orb
+przycisk „Szukaj”
+
+Wynik:
+tabela z kolumnami:
+
+transit body
+natal body
+aspekt
+start
+exact
+end
+duration
+exact orb
+applying / separating
+D. Saved Searches
+ostatnie wyszukiwania
+presety filtrów
+szybkie ponowne liczenie
+E. Settings
+domy
+zodiak tropikalny/syderyczny
+domyślny orb
+język
+ścieżka do danych efemeryd
+
+To wystarczy, żeby to było już prawdziwe narzędzie, a nie demo.
+
+4. Architektura
+
+Tu nie może być syfu. GUI nie liczy astrologii.
+
+astroapp/
+  app/
+    main.py
+    config/
+      settings.py
+    models/
+      person.py
+      birth_data.py
+      chart.py
+      planet_position.py
+      house_cusp.py
+      aspect.py
+      transit_query.py
+      aspect_event.py
+    engine/
+      ephemeris/
+        backend.py
+        swiss_ephemeris_backend.py
+      natal/
+        chart_calculator.py
+        house_calculator.py
+        aspect_calculator.py
+      transit/
+        transit_position_sampler.py
+        aspect_scanner.py
+        event_refiner.py
+    services/
+      person_service.py
+      natal_service.py
+      transit_service.py
+      search_service.py
+    storage/
+      db.py
+      repositories.py
+      migrations.py
+    ui/
+      main_window.py
+      clients_view.py
+      natal_view.py
+      transit_search_view.py
+      saved_searches_view.py
+      settings_view.py
+      widgets/
+    utils/
+      time_utils.py
+      angle_utils.py
+      validation.py
+  tests/
+  docs/
+  pyproject.toml
+  README.md
+  LICENSE
+5. Biblioteki
+
+Must-have
+
+pysweph
+PySide6
+pytest
+ruff
+PyInstaller
+timezonefinder
+geopy
+
+Optional later
+
+pydantic do walidacji modeli
+reportlab albo HTML→PDF do eksportów
+qdarktheme albo własny styl do UI
+
+zoneinfo jest w standardowej bibliotece Pythona i wspiera IANA time zone database; timezonefinder robi lookup strefy czasowej offline z koordynatów, a geopy ułatwia geokodowanie miast i adresów. To są dobre klocki pod lokalną apkę, bo możesz połączyć prosty online geocoder z lokalnym cache i nie pytać sieci drugi raz o to samo miejsce.
+
+6. Jak ma działać silnik
+Warstwa 1: Ephemeris backend
+
+Jedna odpowiedzialność: pobrać pozycje z Swiss.
+
+Interfejs:
+
+get_planet_longitude(dt_utc, body)
+get_house_cusps(dt_utc, lat, lon, house_system)
+get_angles(dt_utc, lat, lon, house_system)
+Warstwa 2: Natal engine
+buduje natal chart
+liczy planety
+liczy domy
+liczy aspekty natalne
+zwraca jeden obiekt Chart
+Warstwa 3: Transit engine
+próbkowanie ruchu tranzytów w czasie
+porównanie z natalem
+wykrywanie wejścia w orb / exact / wyjścia z orbu
+ewentualne doszlifowanie exact time przez ciaśniejsze próbkowanie
+Warstwa 4: Service layer
+pobiera klienta
+woła natal lub transit engine
+zapisuje historię
+daje wynik UI
+7. Kolejność wdrożenia
+Faza 0 — bootstrap repo
+
+Cel: repo działa, tests działają, GUI startuje.
+
+Wynik:
+
+repo
+pyproject.toml
+ruff
+pytest
+szkielet PySide6
+SQLite
+CI na GitHub Actions
+Faza 1 — natal core
+
+Cel: program umie policzyć i zapisać radix.
+
+Zakres:
+
+osoba
+dane urodzeniowe
+miasto / ręczne lat-lon
+timezone
+UTC conversion
+planety
+domy
+aspekty natalne
+zapis lokalny
+
+Definition of done:
+
+można dodać osobę
+można policzyć natal chart
+można go zapisać i otworzyć ponownie
+testy przechodzą
+Faza 2 — painkiller dla żony
+
+Cel: zakresy dat aktywności aspektów tranzytowych do natala.
+
+Zakres:
+
+wybór osoby
+zakres dat
+wybór aspektów
+wybór planet
+orb
+wynik: start / exact / end / duration
+
+Definition of done:
+
+działa dla zapisanej osoby
+tabela wyników działa
+filtrowanie działa
+testy dla entering orb / exact / leaving orb przechodzą
+Faza 3 — workflow
+
+Cel: używalność.
+
+Zakres:
+
+zapisane wyszukiwania
+presety
+szybkie filtry
+eksport CSV
+lepsze UX
+Faza 4 — widoki astrologiczne
+
+Cel: ograniczyć potrzebę wracania do Astro-Seek.
+
+Zakres:
+
+wheel chart
+podgląd tranzytów
+może kalendarz aktywności
+druk/PDF
+Faza 5 — rozszerzenia
+synastria
+composite
+returns
+własne raporty
+8. Jak zacząć, żeby ruszyć szybko
+
+Nie zaczynacie od “pięknej appki”.
+Zaczynacie od rdzenia danych + Swiss + prostego UI.
+
+Sprint 1
+bootstrap repo
+modele danych
+adapter Swiss
+liczenie natala z CLI i testami
+proste okno PySide6
+Sprint 2
+ekran osoby
+ekran natal chart
+zapis do SQLite
+testy integracyjne
+Sprint 3
+transit search
+aspect scanner
+tabela wyników
+filtry
+Sprint 4
+dopracowanie na realnych case’ach żony
+bugfixy
+pakowanie do EXE przez PyInstaller, który bundluje aplikację z zależnościami do jednego pakietu.
+9. Model danych
+
+Na start wystarczy:
+
+Person
+- id
+- name
+- notes
+
+BirthData
+- person_id
+- birth_date
+- birth_time
+- city
+- country
+- latitude
+- longitude
+- timezone_name
+
+Chart
+- id
+- person_id
+- chart_type
+- house_system
+- zodiac_type
+- calculated_at
+
+PlanetPosition
+- chart_id
+- body
+- longitude
+- sign
+- degree_in_sign
+- retrograde
+- house
+
+HouseCusp
+- chart_id
+- house_number
+- longitude
+
+Aspect
+- chart_id
+- body_a
+- body_b
+- aspect_type
+- orb
+- applying_or_separating
+
+TransitQuery
+- person_id
+- start_date
+- end_date
+- orb
+- selected_bodies
+- selected_aspects
+
+AspectEvent
+- query_id
+- transit_body
+- natal_body
+- aspect_type
+- start_dt
+- exact_dt
+- end_dt
+- exact_orb
+- phase
+10. Najważniejsze decyzje funkcjonalne na start
+
+Żeby nie ugrzęznąć, z góry ustaw:
+
+zodiak: tropikalny
+domy: Placidus na start
+aspekty v1: koniunkcja, sekstyl, kwadratura, trygon, opozycja
+ciała v1: Sun, Moon, Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto
+punkty v1: ASC i MC dopiero po natal core
+orb v1: globalny, nie osobny dla każdego aspektu
+
+To jest szybka ścieżka. Reszta później.
+
+11. Workflow w Cursorze / Codexie
+
+Nie dawaj Codexowi jednego ogromnego promptu.
+Dajesz mu małe zadania i po każdym odpalasz testy.
+
+Zasada:
+
+jedna zmiana
+testy
+review kodu
+dopiero następny krok
+12. Plan pracy z Codexem
+Krok 1
+
+bootstrap projektu
+
+Krok 2
+
+modele danych + storage
+
+Krok 3
+
+backend Swiss Ephemeris
+
+Krok 4
+
+natal calculator
+
+Krok 5
+
+UI dla klienta i natala
+
+Krok 6
+
+transit scanner
+
+Krok 7
+
+UI dla transit search
+
+Krok 8
+
+pakowanie do EXE
+14. Co ma być gotowe po pierwszym realnym etapie
+
+Po pierwszym sensownym etapie macie mieć:
+
+dodawanie osoby
+zapis danych urodzeniowych
+liczenie natal chart
+widok planet/domów/aspektów
+zapis do lokalnej bazy
+
+Po drugim:
+
+wyszukiwanie zakresów dat aspektów tranzytowych do natala
+filtrowanie wyników
+używalność na realnych case’ach żony
+
+To już może realnie ograniczyć używanie Astro-Seek.
+
+15. Jedna ważna uwaga
+
+Na start dodaj w formularzu ręczne latitude/longitude/timezone, nawet jeśli geocoding będzie też dostępny.
+To uratuje projekt przed blokowaniem się na miastach, literówkach i dziwnych danych historycznych.
+
+16. Finalna rekomendacja
+
+Bierzcie:
+
+AGPL-3.0
+Python 3.12
+PySide6
+pysweph
+SQLite
+pytest
+ruff
+PyInstaller
+zoneinfo + timezonefinder
+geopy z cache
+
+I budujcie w tej kolejności:
+
+bootstrap
+natal core
+transit aspect range search
+workflow i UX
+dopiero potem reszta
+
+To jest najszybsza ścieżka do działającej apki, a nie do wiecznego projektu.

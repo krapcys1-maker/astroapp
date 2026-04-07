@@ -1,0 +1,216 @@
+Prompt 1 — bootstrap
+Create a new open-source Python desktop application for astrology.
+
+Requirements:
+- Python 3.12
+- PySide6 GUI
+- SQLite storage
+- pytest for tests
+- Ruff for linting/formatting
+- clean modular architecture
+- AGPL-3.0 licensed project
+
+Project goal:
+Build a desktop astrology application that will eventually replace Astro-Seek for a specific workflow.
+The first priority is natal chart support and later transit aspect date-range search.
+
+Create this structure:
+
+astroapp/
+  app/
+    main.py
+    config/settings.py
+    models/
+    engine/
+      ephemeris/
+      natal/
+      transit/
+    services/
+    storage/
+    ui/
+      widgets/
+    utils/
+  tests/
+  docs/
+  pyproject.toml
+  README.md
+  LICENSE
+
+Tasks:
+1. Generate the full project skeleton.
+2. Add pyproject.toml with dependencies and dev dependencies.
+3. Configure Ruff.
+4. Configure pytest.
+5. Add a minimal PySide6 app that opens a main window.
+6. Add a minimal SQLite setup layer.
+7. Add README with architecture summary and roadmap.
+8. Add AGPL-3.0 license file.
+9. Add GitHub Actions workflow for lint + tests.
+
+Important:
+- Keep business logic out of the UI.
+- Use type hints everywhere.
+- Keep modules small and focused.
+- Do not implement astrology calculations yet.
+Prompt 2 — modele i storage
+Extend the astrology desktop application.
+
+Implement domain models and SQLite persistence.
+
+Create typed models for:
+- Person
+- BirthData
+- Chart
+- PlanetPosition
+- HouseCusp
+- Aspect
+- TransitQuery
+- AspectEvent
+
+Implement:
+- SQLite connection management
+- repository layer for Person and BirthData
+- simple migration/bootstrap function for database schema
+- unit tests for create/read/update flows
+
+Constraints:
+- no astrology calculations yet
+- no UI coupling to storage internals
+- keep repositories simple and explicit
+- add tests for repository methods
+Prompt 3 — Swiss backend
+Extend the astrology desktop application with an ephemeris backend abstraction.
+
+Goal:
+Prepare the system for Swiss Ephemeris integration through pysweph.
+
+Implement:
+1. EphemerisBackend protocol/interface
+2. SwissEphemerisBackend class
+3. functions for:
+   - get planet longitude for UTC datetime
+   - get house cusps for UTC datetime and coordinates
+   - get ascendant and MC
+4. configuration for ephemeris data path
+5. clear TODOs and adapter boundaries so the rest of the app does not depend directly on pysweph internals
+
+Important:
+- isolate pysweph usage in one module
+- keep output normalized and typed
+- add tests for backend shape and utility functions
+- do not implement full UI here
+Prompt 4 — natal core
+Implement natal chart calculation for the astrology desktop app.
+
+Requirements:
+- use the ephemeris backend abstraction
+- input: BirthData + calculation settings
+- output: Chart object with:
+  - planetary positions
+  - house cusps
+  - ascendant
+  - MC
+  - major natal aspects
+
+Scope:
+- tropical zodiac
+- Placidus houses
+- major aspects only:
+  conjunction, sextile, square, trine, opposition
+
+Implement:
+- chart_calculator.py
+- house_calculator.py
+- aspect_calculator.py
+- natal_service.py
+
+Add tests for:
+- angle normalization
+- aspect detection
+- chart assembly from backend data
+Prompt 5 — UI dla natala
+Implement the first real GUI workflow for the astrology desktop app.
+
+Create:
+- Clients view
+- Natal Chart view
+
+Features:
+- create/edit person
+- enter birth date, time, city, country, latitude, longitude, timezone
+- calculate natal chart
+- display tables for planets, houses, and natal aspects
+- save and reopen chart data
+
+Constraints:
+- use service layer only
+- no astrology logic in widgets
+- keep layout simple and professional
+- add smoke tests where possible
+Prompt 6 — zakresy dat aspektów
+Implement transit-to-natal aspect date-range search.
+
+Goal:
+For a selected person and date range, detect transit aspect events with:
+- start datetime when entering orb
+- exact datetime
+- end datetime when leaving orb
+
+Scope:
+- major aspects only
+- configurable orb
+- selected transit bodies
+- selected natal bodies
+
+Implement:
+- transit_position_sampler.py
+- aspect_scanner.py
+- event_refiner.py
+- transit_service.py
+
+Output:
+AspectEvent records with:
+- transit body
+- natal body
+- aspect type
+- start_dt
+- exact_dt
+- end_dt
+- exact_orb
+- applying/separating
+
+Add tests for:
+- never enters orb
+- enters and exits orb
+- exact occurs inside the range
+- starts already in orb
+- ends after the search window
+Prompt 7 — UI dla wyszukiwania
+Implement the Transit Search view.
+
+Features:
+- select saved person
+- choose date range
+- choose aspects
+- choose transit bodies
+- choose natal bodies
+- set orb
+- run search
+- show results table
+- support filtering and sorting
+
+Results table columns:
+- transit body
+- natal body
+- aspect
+- start
+- exact
+- end
+- duration
+- exact orb
+- phase
+
+Constraints:
+- UI must call service layer only
+- keep code typed and modular
+- no chart wheel yet
