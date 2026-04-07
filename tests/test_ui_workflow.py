@@ -5,7 +5,6 @@ from datetime import UTC, datetime
 import pytest
 
 from app.config.settings import AppSettings
-from app.main import create_application
 from app.models.aspect import Aspect
 from app.models.birth_data import BirthData
 from app.models.chart import Chart
@@ -13,7 +12,6 @@ from app.models.house_cusp import HouseCusp
 from app.models.planet_position import PlanetPosition
 from app.services.person_service import PersonService
 from app.storage.db import initialize_database
-from app.ui.main_window import MainWindow
 
 pytestmark = pytest.mark.ui
 
@@ -53,6 +51,9 @@ class FakeNatalService:
 
 
 def test_main_window_client_and_natal_workflow(tmp_path) -> None:
+    from app.main import create_application
+    from app.ui.main_window import MainWindow
+
     application = create_application()
     settings = AppSettings.from_environment()
     database_path = tmp_path / "ui.sqlite3"
