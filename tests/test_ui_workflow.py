@@ -10,6 +10,7 @@ from app.models.aspect_event import AspectEvent
 from app.models.birth_data import BirthData
 from app.models.chart import Chart
 from app.models.house_cusp import HouseCusp
+from app.models.location_match import LocationMatch
 from app.models.planet_position import PlanetPosition
 from app.services.person_service import PersonService
 from app.storage.db import initialize_database
@@ -78,6 +79,24 @@ class FakeTransitService:
         return [query for query in reversed(self.queries) if query.person_id == person_id]
 
 
+class FakeLocationLookupService:
+    def search(self, query_text: str, limit: int = 5) -> list[LocationMatch]:
+        del limit
+        return [
+            LocationMatch(
+                query_text=query_text,
+                city="Bucharest",
+                country="Romania",
+                latitude=44.4268,
+                longitude=26.1025,
+                timezone_name="Europe/Bucharest",
+                display_name="Bucharest, Romania",
+                provider="fake",
+                rank=0,
+            )
+        ]
+
+
 def test_main_window_client_and_natal_workflow(tmp_path) -> None:
     from app.main import create_application
     from app.ui.main_window import MainWindow
@@ -87,11 +106,13 @@ def test_main_window_client_and_natal_workflow(tmp_path) -> None:
     database_path = tmp_path / "ui.sqlite3"
     initialize_database(database_path)
     person_service = PersonService(database_path)
+    location_service = FakeLocationLookupService()
     natal_service = FakeNatalService()
     transit_service = FakeTransitService()
     window = MainWindow(
         settings=settings,
         person_service=person_service,
+        location_service=location_service,
         natal_service=natal_service,
         transit_service=transit_service,
     )
@@ -99,12 +120,14 @@ def test_main_window_client_and_natal_workflow(tmp_path) -> None:
     application.processEvents()
 
     clients_view = window._clients_view
+    clients_view._city_lookup_input.setText("Bucharest")
+    clients_view._city_lookup_button.click()
+    application.processEvents()
+
+    assert clients_view._location_results_list.count() == 1
+    assert clients_view._timezone_input.text() == "Europe/Bucharest"
+
     clients_view._name_input.setText("Test Client")
-    clients_view._city_input.setText("Bucharest")
-    clients_view._country_input.setText("Romania")
-    clients_view._latitude_input.setValue(44.4268)
-    clients_view._longitude_input.setValue(26.1025)
-    clients_view._timezone_input.setText("UTC")
     clients_view._save_button.click()
     application.processEvents()
 
@@ -120,6 +143,7 @@ def test_main_window_client_and_natal_workflow(tmp_path) -> None:
     assert natal_view._planets_table.rowCount() == 2
     assert natal_view._houses_table.rowCount() == 2
     assert natal_view._aspects_table.rowCount() == 1
+    assert natal_view._chart_widget.chart is not None
     assert "calculated and saved" in natal_view._status_label.text().lower()
 
     window._navigation.setCurrentRow(2)

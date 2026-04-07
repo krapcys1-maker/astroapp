@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.config.settings import AppSettings
+from app.services.location_lookup_service import LocationLookupService
 from app.services.natal_service import NatalService
 from app.services.person_service import PersonService
 from app.services.transit_service import TransitService
@@ -25,16 +26,20 @@ class MainWindow(QMainWindow):
         self,
         settings: AppSettings,
         person_service: PersonService,
+        location_service: LocationLookupService | None,
         natal_service: NatalService | None,
         transit_service: TransitService | None,
+        location_error: str | None = None,
         natal_error: str | None = None,
         transit_error: str | None = None,
     ) -> None:
         super().__init__()
         self._settings = settings
         self._person_service = person_service
+        self._location_service = location_service
         self._natal_service = natal_service
         self._transit_service = transit_service
+        self._location_error = location_error
         self._natal_error = natal_error
         self._transit_error = transit_error
         self.setWindowTitle("astroapp")
@@ -85,7 +90,11 @@ class MainWindow(QMainWindow):
         content_layout.setSpacing(0)
 
         self._pages = QStackedWidget(content_card)
-        self._clients_view = ClientsView(self._person_service)
+        self._clients_view = ClientsView(
+            self._person_service,
+            location_lookup_service=self._location_service,
+            location_error=self._location_error,
+        )
         self._natal_view = NatalView(
             self._person_service,
             self._natal_service,

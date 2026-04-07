@@ -20,8 +20,10 @@ from PySide6.QtWidgets import (
 )
 
 from app.models.birth_data import BirthData
+from app.models.location_match import LocationMatch
 from app.models.person import Person
 from app.models.person_profile import PersonProfile
+from app.services.location_lookup_service import LocationLookupService
 from app.services.person_service import PersonService
 
 
@@ -29,10 +31,18 @@ class ClientsView(QWidget):
     person_selected = Signal(int)
     person_saved = Signal(int)
 
-    def __init__(self, person_service: PersonService) -> None:
+    def __init__(
+        self,
+        person_service: PersonService,
+        location_lookup_service: LocationLookupService | None = None,
+        location_error: str | None = None,
+    ) -> None:
         super().__init__()
         self._person_service = person_service
+        self._location_lookup_service = location_lookup_service
+        self._location_error = location_error
         self._current_person_id: int | None = None
+        self._location_matches: list[LocationMatch] = []
         self._build_ui()
         self.refresh_profiles()
 
@@ -142,8 +152,27 @@ class ClientsView(QWidget):
         profile_fields.addRow("Notes", self._notes_input)
 
         birth_group = QGroupBox("Birth data")
-        birth_fields = QFormLayout(birth_group)
-        birth_fields.setContentsMargins(16, 18, 16, 16)
+        birth_layout = QVBoxLayout(birth_group)
+        birth_layout.setContentsMargins(16, 18, 16, 16)
+        birth_layout.setSpacing(10)
+
+        lookup_controls = QHBoxLayout()
+        self._city_lookup_input = QLineEdit()
+        self._city_lookup_input.setPlaceholderText("Search a city, town, or village")
+        self._city_lookup_button = QPushButton("Find city")
+        self._city_lookup_button.setObjectName("secondaryButton")
+        self._city_lookup_button.clicked.connect(self._on_city_lookup_clicked)
+        lookup_controls.addWidget(self._city_lookup_input, 1)
+        lookup_controls.addWidget(self._city_lookup_button)
+        birth_layout.addLayout(lookup_controls)
+
+        self._location_results_list = QListWidget()
+        self._location_results_list.setObjectName("locationResultsList")
+        self._location_results_list.setMaximumHeight(120)
+        self._location_results_list.currentRowChanged.connect(self._on_location_selected)
+        birth_layout.addWidget(self._location_results_list)
+
+        birth_fields = QFormLayout()
         birth_fields.setSpacing(10)
 
         self._birth_date_input = QDateEdit()
@@ -172,6 +201,7 @@ class ClientsView(QWidget):
         birth_fields.addRow("Latitude", self._latitude_input)
         birth_fields.addRow("Longitude", self._longitude_input)
         birth_fields.addRow("Timezone", self._timezone_input)
+        birth_layout.addLayout(birth_fields)
 
         actions = QHBoxLayout()
         self._new_button = QPushButton("New client")
@@ -203,6 +233,7 @@ class ClientsView(QWidget):
         centered_layout.addStretch(1)
         outer_layout.addLayout(centered_layout)
         outer_layout.addStretch(1)
+        self._city_lookup_button.setEnabled(self._location_lookup_service is not None)
 
     def _set_empty_form(self) -> None:
         self._current_person_id = None
@@ -215,6 +246,9 @@ class ClientsView(QWidget):
         self._latitude_input.setValue(0.0)
         self._longitude_input.setValue(0.0)
         self._timezone_input.setText("UTC")
+        self._city_lookup_input.clear()
+        self._location_results_list.clear()
+        self._location_matches = []
         self._status_label.setText("Create a client profile to start.")
 
     def _load_profile(self, profile: PersonProfile) -> None:
@@ -241,6 +275,7 @@ class ClientsView(QWidget):
             self._latitude_input.setValue(profile.birth_data.latitude)
             self._longitude_input.setValue(profile.birth_data.longitude)
             self._timezone_input.setText(profile.birth_data.timezone_name)
+            self._city_lookup_input.setText(profile.birth_data.city)
         self._status_label.setText(f"Loaded client: {profile.person.name}")
 
     def _on_new_clicked(self) -> None:
@@ -287,6 +322,48 @@ class ClientsView(QWidget):
         self._status_label.setText(f"Saved client: {profile.person.name}")
         if profile.person.id is not None:
             self.person_saved.emit(profile.person.id)
+
+    def _on_city_lookup_clicked(self) -> None:
+        query_text = self._city_lookup_input.text().strip() or self._city_input.text().strip()
+        if not query_text:
+            self._status_label.setText("Enter a city name before running lookup.")
+            return
+        if self._location_lookup_service is None:
+            self._status_label.setText(
+                self._location_error
+                or "City lookup is unavailable. Install the optional 'geo' dependencies."
+            )
+            return
+        try:
+            self._location_matches = self._location_lookup_service.search(query_text, limit=6)
+        except RuntimeError as exc:
+            self._status_label.setText(str(exc))
+            return
+        self._location_results_list.clear()
+        for match in self._location_matches:
+            label = f"{match.display_name} ({match.latitude:.4f}, {match.longitude:.4f})"
+            self._location_results_list.addItem(QListWidgetItem(label))
+        if self._location_results_list.count() == 0:
+            self._status_label.setText("No matching locations found.")
+            return
+        self._location_results_list.setCurrentRow(0)
+        self._status_label.setText(
+            f"Loaded {self._location_results_list.count()} location suggestions."
+        )
+
+    def _on_location_selected(self, index: int) -> None:
+        if index < 0 or index >= len(self._location_matches):
+            return
+        match = self._location_matches[index]
+        self._city_input.setText(match.city)
+        self._country_input.setText(match.country)
+        self._latitude_input.setValue(match.latitude)
+        self._longitude_input.setValue(match.longitude)
+        self._timezone_input.setText(match.timezone_name)
+        self._city_lookup_input.setText(match.city)
+        self._status_label.setText(
+            f"Applied location: {match.city}, {match.country} ({match.timezone_name})"
+        )
 
     def _select_person(self, person_id: int | None) -> None:
         if person_id is None:

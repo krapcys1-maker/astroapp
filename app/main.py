@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QApplication
 
 from app.config.settings import AppSettings
 from app.engine.ephemeris import SwissEphemerisBackend
-from app.services import NatalService, PersonService, TransitService
+from app.services import LocationLookupService, NatalService, PersonService, TransitService
 from app.storage.db import initialize_database
 from app.ui.main_window import MainWindow
 
@@ -26,9 +26,15 @@ def main() -> int:
     settings.ensure_directories()
     initialize_database(settings.database_path)
     person_service = PersonService(settings.database_path)
+    location_service = None
     natal_service = None
     transit_service = None
+    location_error = None
     natal_error = None
+    try:
+        location_service = LocationLookupService(settings.database_path)
+    except RuntimeError as exc:
+        location_error = str(exc)
     try:
         backend = SwissEphemerisBackend(settings.ephemeris_path)
         natal_service = NatalService(backend, database_path=settings.database_path)
@@ -39,8 +45,10 @@ def main() -> int:
     window = MainWindow(
         settings=settings,
         person_service=person_service,
+        location_service=location_service,
         natal_service=natal_service,
         transit_service=transit_service,
+        location_error=location_error,
         natal_error=natal_error,
         transit_error=natal_error,
     )

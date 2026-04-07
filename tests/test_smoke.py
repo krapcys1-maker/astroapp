@@ -21,8 +21,10 @@ def test_main_window_smoke(tmp_path) -> None:
     window = MainWindow(
         settings=settings,
         person_service=person_service,
+        location_service=None,
         natal_service=None,
         transit_service=None,
+        location_error="City lookup unavailable in smoke test.",
         natal_error="Swiss backend unavailable in smoke test.",
         transit_error="Swiss backend unavailable in smoke test.",
     )

@@ -21,7 +21,7 @@ astro = [
 ]
 geo = [
   "geopy>=2.4,<3.0",
-  "timezonefinder>=6.5,<7.0",
+  "tzfpy>=0.15,<1.0",
 ]
 dev = [
   "pyinstaller>=6.10,<7.0",

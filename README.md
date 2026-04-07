@@ -58,7 +58,7 @@ For later work on geocoding and timezone lookup, install the separate lookup sta
 pip install -e .[geo]
 ```
 
-On Windows, the `astro` stack is configured around `pysweph`, which ships wheels for the common setups we are targeting. The optional `geo` stack may still require native build tools, depending on the `timezonefinder` wheel availability for your platform.
+On Windows, the `astro` stack is configured around `pysweph`, which ships wheels for the common setups we are targeting. The optional `geo` stack uses `geopy` plus `tzfpy`, which is a friendlier fit for the Windows workflow we are targeting here.
 
 Run the app:
 

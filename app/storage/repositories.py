@@ -8,6 +8,7 @@ from app.models.aspect import Aspect
 from app.models.birth_data import BirthData
 from app.models.chart import Chart
 from app.models.house_cusp import HouseCusp
+from app.models.location_match import LocationMatch
 from app.models.person import Person
 from app.models.person_profile import PersonProfile
 from app.models.planet_position import PlanetPosition
@@ -112,6 +113,21 @@ def _transit_query_from_row(row: Row) -> TransitQuery:
         selected_transit_bodies=_deserialize_tuple(row["selected_transit_bodies"]),
         selected_natal_bodies=_deserialize_tuple(row["selected_natal_bodies"]),
         selected_aspects=_deserialize_tuple(row["selected_aspects"]),
+    )
+
+
+def _location_match_from_row(row: Row) -> LocationMatch:
+    return LocationMatch(
+        id=row["id"],
+        query_text=row["query_text"],
+        city=row["city"],
+        country=row["country"],
+        latitude=row["latitude"],
+        longitude=row["longitude"],
+        timezone_name=row["timezone_name"],
+        display_name=row["display_name"],
+        provider=row["provider"],
+        rank=row["rank"],
     )
 
 
@@ -532,3 +548,103 @@ class TransitQueryRepository:
         with connect_sqlite(self._database_path) as connection:
             rows = connection.execute(sql, params).fetchall()
         return [_transit_query_from_row(row) for row in rows]
+
+
+class LocationMatchRepository:
+    def __init__(self, database_path: Path) -> None:
+        self._database_path = database_path
+
+    def replace_for_query(self, query_text: str, matches: list[LocationMatch]) -> None:
+        with connect_sqlite(self._database_path) as connection:
+            connection.execute(
+                """
+                DELETE FROM location_matches
+                WHERE lower(query_text) = lower(?)
+                """,
+                (query_text,),
+            )
+            for rank, match in enumerate(matches):
+                connection.execute(
+                    """
+                    INSERT INTO location_matches(
+                        query_text,
+                        city,
+                        country,
+                        latitude,
+                        longitude,
+                        timezone_name,
+                        display_name,
+                        provider,
+                        rank
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        query_text,
+                        match.city,
+                        match.country,
+                        match.latitude,
+                        match.longitude,
+                        match.timezone_name,
+                        match.display_name,
+                        match.provider,
+                        rank,
+                    ),
+                )
+
+    def list_for_query(self, query_text: str, *, limit: int = 5) -> list[LocationMatch]:
+        with connect_sqlite(self._database_path) as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    id,
+                    query_text,
+                    city,
+                    country,
+                    latitude,
+                    longitude,
+                    timezone_name,
+                    display_name,
+                    provider,
+                    rank
+                FROM location_matches
+                WHERE lower(query_text) = lower(?)
+                ORDER BY rank, id
+                LIMIT ?
+                """,
+                (query_text, limit),
+            ).fetchall()
+        return [_location_match_from_row(row) for row in rows]
+
+    def search_cached(self, query_text: str, *, limit: int = 5) -> list[LocationMatch]:
+        pattern = f"%{query_text.lower()}%"
+        with connect_sqlite(self._database_path) as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    MIN(id) AS id,
+                    MIN(query_text) AS query_text,
+                    city,
+                    country,
+                    latitude,
+                    longitude,
+                    timezone_name,
+                    display_name,
+                    provider,
+                    MIN(rank) AS rank
+                FROM location_matches
+                WHERE lower(city) LIKE ? OR lower(country) LIKE ? OR lower(display_name) LIKE ?
+                GROUP BY
+                    city,
+                    country,
+                    latitude,
+                    longitude,
+                    timezone_name,
+                    display_name,
+                    provider
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (pattern, pattern, pattern, limit),
+            ).fetchall()
+        return [_location_match_from_row(row) for row in rows]

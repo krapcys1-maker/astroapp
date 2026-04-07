@@ -1,7 +1,8 @@
 """Application services package."""
 
+from app.services.location_lookup_service import LocationLookupService
 from app.services.natal_service import NatalService
 from app.services.person_service import PersonService
 from app.services.transit_service import TransitService
 
-__all__ = ["NatalService", "PersonService", "TransitService"]
+__all__ = ["LocationLookupService", "NatalService", "PersonService", "TransitService"]

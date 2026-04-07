@@ -118,11 +118,39 @@ def _migration_004_transit_queries(connection: sqlite3.Connection) -> None:
     )
 
 
+def _migration_005_location_lookup_cache(connection: sqlite3.Connection) -> None:
+    connection.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS location_matches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            query_text TEXT NOT NULL,
+            city TEXT NOT NULL,
+            country TEXT NOT NULL,
+            latitude REAL NOT NULL,
+            longitude REAL NOT NULL,
+            timezone_name TEXT NOT NULL,
+            display_name TEXT NOT NULL,
+            provider TEXT NOT NULL,
+            rank INTEGER NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(query_text, rank)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_location_matches_query_text
+            ON location_matches(query_text);
+
+        CREATE INDEX IF NOT EXISTS idx_location_matches_city_country
+            ON location_matches(city, country);
+        """
+    )
+
+
 MIGRATIONS: dict[int, Migration] = {
     1: _migration_001_base,
     2: _migration_002_people_and_birth_data,
     3: _migration_003_charts,
     4: _migration_004_transit_queries,
+    5: _migration_005_location_lookup_cache,
 }
 
 LATEST_SCHEMA_VERSION = max(MIGRATIONS)

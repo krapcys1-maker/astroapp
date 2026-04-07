@@ -6,6 +6,7 @@ from app.models.birth_data import BirthData
 from app.models.chart import Chart
 from app.models.chart_settings import NatalChartSettings
 from app.models.house_cusp import HouseCusp
+from app.models.location_match import LocationMatch
 from app.models.person import Person
 from app.models.person_profile import PersonProfile
 from app.models.planet_position import PlanetPosition
@@ -18,6 +19,7 @@ __all__ = [
     "Chart",
     "NatalChartSettings",
     "HouseCusp",
+    "LocationMatch",
     "Person",
     "PersonProfile",
     "PlanetPosition",

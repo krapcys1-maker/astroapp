@@ -19,6 +19,7 @@ from app.models.chart import Chart
 from app.models.chart_settings import NatalChartSettings
 from app.services.natal_service import NatalService
 from app.services.person_service import PersonService
+from app.ui.widgets import NatalChartWidget
 
 
 class NatalView(QWidget):
@@ -129,6 +130,13 @@ class NatalView(QWidget):
         controls_layout.addWidget(self._meta_label)
 
         layout.addWidget(controls_card)
+
+        chart_group = QGroupBox("Chart wheel")
+        chart_layout = QVBoxLayout(chart_group)
+        chart_layout.setContentsMargins(16, 18, 16, 16)
+        self._chart_widget = NatalChartWidget(chart_group)
+        chart_layout.addWidget(self._chart_widget)
+        layout.addWidget(chart_group)
 
         self._planets_table = self._create_table(
             "planetsTable",
@@ -261,9 +269,11 @@ class NatalView(QWidget):
             ]
             for column_index, value in enumerate(values):
                 self._aspects_table.setItem(row_index, column_index, QTableWidgetItem(value))
+        self._chart_widget.set_chart(chart)
 
     def _clear_tables(self) -> None:
         self._meta_label.setText("No chart loaded.")
+        self._chart_widget.set_chart(None)
         for table in (self._planets_table, self._houses_table, self._aspects_table):
             table.setRowCount(0)
 
