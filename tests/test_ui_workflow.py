@@ -6,6 +6,7 @@ import pytest
 
 from app.config.settings import AppSettings
 from app.models.aspect import Aspect
+from app.models.aspect_event import AspectEvent
 from app.models.birth_data import BirthData
 from app.models.chart import Chart
 from app.models.house_cusp import HouseCusp
@@ -50,6 +51,24 @@ class FakeNatalService:
         return self.saved.get(person_id)
 
 
+class FakeTransitService:
+    def search(self, query) -> list[AspectEvent]:
+        del query
+
+        return [
+            AspectEvent(
+                transit_body="Mars",
+                natal_body="Sun",
+                aspect_type="trine",
+                start_dt=datetime(2026, 4, 7, 8, 0, tzinfo=UTC),
+                exact_dt=datetime(2026, 4, 7, 12, 0, tzinfo=UTC),
+                end_dt=datetime(2026, 4, 7, 18, 0, tzinfo=UTC),
+                exact_orb=0.0,
+                phase="applying-separating",
+            )
+        ]
+
+
 def test_main_window_client_and_natal_workflow(tmp_path) -> None:
     from app.main import create_application
     from app.ui.main_window import MainWindow
@@ -60,10 +79,12 @@ def test_main_window_client_and_natal_workflow(tmp_path) -> None:
     initialize_database(database_path)
     person_service = PersonService(database_path)
     natal_service = FakeNatalService()
+    transit_service = FakeTransitService()
     window = MainWindow(
         settings=settings,
         person_service=person_service,
         natal_service=natal_service,
+        transit_service=transit_service,
     )
     window.show()
     application.processEvents()
@@ -91,3 +112,13 @@ def test_main_window_client_and_natal_workflow(tmp_path) -> None:
     assert natal_view._houses_table.rowCount() == 2
     assert natal_view._aspects_table.rowCount() == 1
     assert "calculated and saved" in natal_view._status_label.text().lower()
+
+    window._navigation.setCurrentRow(2)
+    application.processEvents()
+
+    transit_view = window._transit_view
+    transit_view._search_button.click()
+    application.processEvents()
+
+    assert transit_view._results_table.rowCount() == 1
+    assert "found 1 transit events" in transit_view._status_label.text().lower()

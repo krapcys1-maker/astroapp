@@ -1,0 +1,240 @@
+from __future__ import annotations
+
+from PySide6.QtCore import QDate
+from PySide6.QtWidgets import (
+    QComboBox,
+    QDateEdit,
+    QDoubleSpinBox,
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
+
+from app.models.aspect_event import AspectEvent
+from app.models.transit_query import TransitQuery
+from app.services.person_service import PersonService
+from app.services.transit_service import TransitService
+
+BODY_OPTIONS = (
+    "Sun",
+    "Moon",
+    "Mercury",
+    "Venus",
+    "Mars",
+    "Jupiter",
+    "Saturn",
+    "Uranus",
+    "Neptune",
+    "Pluto",
+)
+ASPECT_OPTIONS = ("conjunction", "sextile", "square", "trine", "opposition")
+
+
+class TransitSearchView(QWidget):
+    def __init__(
+        self,
+        person_service: PersonService,
+        transit_service: TransitService | None,
+        transit_error: str | None = None,
+    ) -> None:
+        super().__init__()
+        self._person_service = person_service
+        self._transit_service = transit_service
+        self._transit_error = transit_error
+        self._events: list[AspectEvent] = []
+        self._build_ui()
+        self.refresh_people()
+
+    def refresh_people(self) -> None:
+        current_person_id = self.current_person_id()
+        self._person_selector.blockSignals(True)
+        self._person_selector.clear()
+        for profile in self._person_service.list_profiles():
+            self._person_selector.addItem(profile.person.name, profile.person.id)
+        self._person_selector.blockSignals(False)
+        if current_person_id is not None:
+            self.show_person(current_person_id)
+        elif self._person_selector.count() > 0:
+            self._person_selector.setCurrentIndex(0)
+
+    def show_person(self, person_id: int) -> None:
+        for index in range(self._person_selector.count()):
+            if self._person_selector.itemData(index) == person_id:
+                self._person_selector.setCurrentIndex(index)
+                break
+
+    def current_person_id(self) -> int | None:
+        person_id = self._person_selector.currentData()
+        return None if person_id is None else int(person_id)
+
+    def _build_ui(self) -> None:
+        layout = QVBoxLayout(self)
+
+        title = QLabel("Transit Search")
+        title.setObjectName("transitTitle")
+        layout.addWidget(title)
+
+        form = QFormLayout()
+        self._person_selector = QComboBox()
+        self._start_date_input = QDateEdit()
+        self._start_date_input.setCalendarPopup(True)
+        self._start_date_input.setDate(QDate.currentDate())
+        self._end_date_input = QDateEdit()
+        self._end_date_input.setCalendarPopup(True)
+        self._end_date_input.setDate(QDate.currentDate().addDays(30))
+        self._orb_input = QDoubleSpinBox()
+        self._orb_input.setRange(0.1, 15.0)
+        self._orb_input.setDecimals(1)
+        self._orb_input.setValue(3.0)
+        default_bodies = ", ".join(BODY_OPTIONS)
+        self._transit_bodies_input = QLineEdit(default_bodies)
+        self._natal_bodies_input = QLineEdit(default_bodies)
+        self._aspects_input = QLineEdit("conjunction, sextile, square, trine, opposition")
+        self._filter_input = QLineEdit()
+        self._filter_input.setPlaceholderText("Filter results by body or aspect")
+        self._filter_input.textChanged.connect(self._apply_filter)
+
+        form.addRow("Person", self._person_selector)
+        form.addRow("Start date", self._start_date_input)
+        form.addRow("End date", self._end_date_input)
+        form.addRow("Orb", self._orb_input)
+        form.addRow("Transit bodies", self._transit_bodies_input)
+        form.addRow("Natal bodies", self._natal_bodies_input)
+        form.addRow("Aspects", self._aspects_input)
+        form.addRow("Filter", self._filter_input)
+        layout.addLayout(form)
+
+        actions = QHBoxLayout()
+        self._search_button = QPushButton("Run transit search")
+        self._search_button.clicked.connect(self._run_search)
+        self._sort_exact_button = QPushButton("Sort by exact time")
+        self._sort_exact_button.clicked.connect(self._sort_by_exact)
+        actions.addWidget(self._search_button)
+        actions.addWidget(self._sort_exact_button)
+        layout.addLayout(actions)
+
+        self._status_label = QLabel("")
+        self._status_label.setObjectName("transitStatus")
+        layout.addWidget(self._status_label)
+
+        self._results_table = QTableWidget(0, 9)
+        self._results_table.setObjectName("transitResultsTable")
+        self._results_table.setHorizontalHeaderLabels(
+            [
+                "Transit body",
+                "Natal body",
+                "Aspect",
+                "Start",
+                "Exact",
+                "End",
+                "Duration",
+                "Exact orb",
+                "Phase",
+            ]
+        )
+        self._results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self._results_table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
+        self._results_table.horizontalHeader().setStretchLastSection(True)
+        layout.addWidget(self._results_table)
+        layout.addStretch(1)
+
+    def _run_search(self) -> None:
+        person_id = self.current_person_id()
+        if person_id is None:
+            self._set_status("Select a client first.")
+            return
+        if self._transit_service is None:
+            self._set_status(self._transit_error or "Transit service is unavailable.")
+            return
+        query = TransitQuery(
+            person_id=person_id,
+            start_date=self._start_date_input.date().toPython(),
+            end_date=self._end_date_input.date().toPython(),
+            orb=self._orb_input.value(),
+            selected_transit_bodies=self._parse_csv(
+                self._transit_bodies_input.text(),
+                BODY_OPTIONS,
+            ),
+            selected_natal_bodies=self._parse_csv(
+                self._natal_bodies_input.text(),
+                BODY_OPTIONS,
+            ),
+            selected_aspects=self._parse_csv(
+                self._aspects_input.text(),
+                ASPECT_OPTIONS,
+            ),
+        )
+        self._events = self._transit_service.search(query)
+        self._populate_results(self._events)
+        self._set_status(f"Found {len(self._events)} transit events.")
+
+    def _sort_by_exact(self) -> None:
+        self._events.sort(
+            key=lambda event: (
+                event.exact_dt is None,
+                event.exact_dt or event.start_dt,
+            )
+        )
+        self._apply_filter()
+
+    def _apply_filter(self) -> None:
+        filter_text = self._filter_input.text().strip().lower()
+        if not filter_text:
+            self._populate_results(self._events)
+            return
+        filtered = [
+            event
+            for event in self._events
+            if filter_text in event.transit_body.lower()
+            or filter_text in event.natal_body.lower()
+            or filter_text in event.aspect_type.lower()
+            or filter_text in event.phase.lower()
+        ]
+        self._populate_results(filtered)
+
+    def _populate_results(self, events: list[AspectEvent]) -> None:
+        self._results_table.setRowCount(len(events))
+        for row_index, event in enumerate(events):
+            values = [
+                event.transit_body,
+                event.natal_body,
+                event.aspect_type,
+                event.start_dt.isoformat(timespec="minutes"),
+                "" if event.exact_dt is None else event.exact_dt.isoformat(timespec="minutes"),
+                "" if event.end_dt is None else event.end_dt.isoformat(timespec="minutes"),
+                self._format_duration(event),
+                "" if event.exact_orb is None else f"{event.exact_orb:.2f}",
+                event.phase,
+            ]
+            for column_index, value in enumerate(values):
+                self._results_table.setItem(row_index, column_index, QTableWidgetItem(value))
+
+    @staticmethod
+    def _format_duration(event: AspectEvent) -> str:
+        if event.end_dt is None:
+            return "open"
+        duration = event.end_dt - event.start_dt
+        total_hours = duration.total_seconds() / 3600
+        return f"{total_hours:.1f}h"
+
+    @staticmethod
+    def _parse_csv(raw_value: str, allowed_values: tuple[str, ...]) -> tuple[str, ...]:
+        allowed_lookup = {value.lower(): value for value in allowed_values}
+        parsed: list[str] = []
+        for chunk in raw_value.split(","):
+            normalized = chunk.strip().lower()
+            if not normalized:
+                continue
+            canonical = allowed_lookup.get(normalized)
+            if canonical is not None:
+                parsed.append(canonical)
+        return tuple(parsed)
+
+    def _set_status(self, message: str) -> None:
+        self._status_label.setText(message)

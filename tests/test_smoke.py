@@ -22,7 +22,9 @@ def test_main_window_smoke(tmp_path) -> None:
         settings=settings,
         person_service=person_service,
         natal_service=None,
+        transit_service=None,
         natal_error="Swiss backend unavailable in smoke test.",
+        transit_error="Swiss backend unavailable in smoke test.",
     )
 
     assert application.applicationName() == "astroapp"
