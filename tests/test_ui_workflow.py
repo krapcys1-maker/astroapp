@@ -12,6 +12,7 @@ from app.models.chart import Chart
 from app.models.house_cusp import HouseCusp
 from app.models.location_match import LocationMatch
 from app.models.planet_position import PlanetPosition
+from app.models.transit_aspect_hit import TransitAspectHit
 from app.services.person_service import PersonService
 from app.storage.db import initialize_database
 
@@ -84,6 +85,27 @@ class FakeTransitService:
         return [
             PlanetPosition("Sun", 15.0, "Aries", 15.0, False, None),
             PlanetPosition("Moon", 82.0, "Gemini", 22.0, False, None),
+        ]
+
+    def calculate_snapshot_aspects(self, **kwargs) -> list[TransitAspectHit]:
+        at_dt_utc = kwargs["at_dt_utc"]
+        return [
+            TransitAspectHit(
+                transit_body="Sun",
+                natal_body="Sun",
+                aspect_type="conjunction",
+                orb=0.5,
+                phase="applying",
+                at_dt=at_dt_utc,
+            ),
+            TransitAspectHit(
+                transit_body="Moon",
+                natal_body="Moon",
+                aspect_type="trine",
+                orb=1.2,
+                phase="separating",
+                at_dt=at_dt_utc,
+            ),
         ]
 
 
@@ -159,6 +181,7 @@ def test_main_window_client_and_natal_workflow(tmp_path) -> None:
 
     assert len(natal_view._chart_widget._transit_positions) == 2
     assert len(transit_service.position_calls) == 1
+    assert natal_view._transit_hits_table.rowCount() == 2
     assert "transit overlay updated" in natal_view._status_label.text().lower()
 
     window._navigation.setCurrentRow(2)

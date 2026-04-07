@@ -4,10 +4,13 @@ from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 
 from app.engine.ephemeris import EphemerisBackend
+from app.engine.natal.aspect_calculator import MAJOR_ASPECTS
 from app.engine.transit import AspectScanner, TransitPositionSampler
+from app.engine.transit.event_refiner import aspect_deviation
 from app.models.aspect_event import AspectEvent
 from app.models.chart import Chart
 from app.models.planet_position import PlanetPosition
+from app.models.transit_aspect_hit import TransitAspectHit
 from app.models.transit_query import TransitQuery
 from app.storage.repositories import ChartRepository, TransitQueryRepository
 from app.utils.angle_utils import degree_in_sign, zodiac_sign
@@ -74,6 +77,67 @@ class TransitService:
                 )
             )
         return positions
+
+    def calculate_snapshot_aspects(
+        self,
+        *,
+        at_dt_utc: datetime,
+        natal_chart: Chart,
+        orb: float = 3.0,
+        transit_bodies: tuple[str, ...] | None = None,
+        natal_bodies: tuple[str, ...] | None = None,
+        aspect_types: tuple[str, ...] | None = None,
+    ) -> list[TransitAspectHit]:
+        selected_transit_bodies = transit_bodies or tuple(
+            position.body for position in natal_chart.planet_positions
+        )
+        selected_natal_bodies = set(natal_bodies or ())
+        selected_aspect_types = aspect_types or tuple(MAJOR_ASPECTS)
+        transit_positions = {
+            position.body: position
+            for position in self.calculate_positions(at_dt_utc, selected_transit_bodies)
+        }
+        future_dt = at_dt_utc + timedelta(hours=1)
+        future_positions = {
+            position.body: position
+            for position in self.calculate_positions(future_dt, selected_transit_bodies)
+        }
+
+        hits: list[TransitAspectHit] = []
+        for natal_position in natal_chart.planet_positions:
+            if selected_natal_bodies and natal_position.body not in selected_natal_bodies:
+                continue
+            for transit_body, transit_position in transit_positions.items():
+                for aspect_type in selected_aspect_types:
+                    current_orb = aspect_deviation(
+                        transit_position.longitude,
+                        natal_position.longitude,
+                        aspect_type,
+                    )
+                    if current_orb > orb:
+                        continue
+                    future_orb = aspect_deviation(
+                        future_positions[transit_body].longitude,
+                        natal_position.longitude,
+                        aspect_type,
+                    )
+                    if current_orb < 1e-3:
+                        phase = "exact"
+                    else:
+                        phase = "applying" if future_orb < current_orb else "separating"
+                    hits.append(
+                        TransitAspectHit(
+                            transit_body=transit_body,
+                            natal_body=natal_position.body,
+                            aspect_type=aspect_type,
+                            orb=current_orb,
+                            phase=phase,
+                            at_dt=at_dt_utc,
+                        )
+                    )
+                    break
+        hits.sort(key=lambda item: (item.orb, item.transit_body, item.natal_body))
+        return hits
 
     def _get_required_natal_chart(self, person_id: int) -> Chart:
         if self._charts is None:

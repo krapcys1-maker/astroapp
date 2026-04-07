@@ -6,6 +6,7 @@ from PySide6.QtCore import QDate, QTime
 from PySide6.QtWidgets import (
     QComboBox,
     QDateEdit,
+    QDoubleSpinBox,
     QFileDialog,
     QFormLayout,
     QFrame,
@@ -144,6 +145,10 @@ class NatalView(QWidget):
         self._transit_date_input.setDate(QDate.currentDate())
         self._transit_time_input = QTimeEdit()
         self._transit_time_input.setTime(QTime.currentTime())
+        self._transit_orb_input = QDoubleSpinBox()
+        self._transit_orb_input.setRange(0.1, 10.0)
+        self._transit_orb_input.setDecimals(1)
+        self._transit_orb_input.setValue(3.0)
         self._transit_timezone_label = QLabel("Uses the selected client's timezone")
         transit_actions = QHBoxLayout()
         self._show_transits_button = QPushButton("Show transit overlay")
@@ -156,6 +161,7 @@ class NatalView(QWidget):
         transit_actions.addWidget(self._clear_transits_button)
         transit_layout.addRow("Date", self._transit_date_input)
         transit_layout.addRow("Time", self._transit_time_input)
+        transit_layout.addRow("Orb", self._transit_orb_input)
         transit_layout.addRow("Timezone", self._transit_timezone_label)
         transit_layout.addRow("", transit_actions)
         controls_layout.addWidget(transit_group)
@@ -207,9 +213,19 @@ class NatalView(QWidget):
         aspects_layout.setContentsMargins(16, 18, 16, 16)
         aspects_layout.addWidget(self._aspects_table)
 
+        self._transit_hits_table = self._create_table(
+            "transitHitsTable",
+            ["Transit body", "Natal body", "Aspect", "Orb", "Phase", "Moment"],
+        )
+        transit_hits_group = QGroupBox("Transit-to-natal aspects")
+        transit_hits_layout = QVBoxLayout(transit_hits_group)
+        transit_hits_layout.setContentsMargins(16, 18, 16, 16)
+        transit_hits_layout.addWidget(self._transit_hits_table)
+
         layout.addWidget(planets_group)
         layout.addWidget(houses_group)
         layout.addWidget(aspects_group)
+        layout.addWidget(transit_hits_group)
         layout.addStretch(1)
 
         centered_layout.addWidget(page)
@@ -321,7 +337,13 @@ class NatalView(QWidget):
             transit_dt_utc,
             tuple(position.body for position in self._chart_widget.chart.planet_positions),
         )
+        hits = self._transit_service.calculate_snapshot_aspects(
+            at_dt_utc=transit_dt_utc,
+            natal_chart=self._chart_widget.chart,
+            orb=self._transit_orb_input.value(),
+        )
         self._chart_widget.set_transit_positions(positions)
+        self._populate_transit_hits(hits)
         self._clear_transits_button.setEnabled(True)
         self._set_status(
             "Transit overlay updated for "
@@ -332,6 +354,7 @@ class NatalView(QWidget):
 
     def _clear_transit_overlay(self) -> None:
         self._chart_widget.set_transit_positions([])
+        self._transit_hits_table.setRowCount(0)
         self._clear_transits_button.setEnabled(False)
         self._set_status("Transit overlay cleared.")
 
@@ -378,6 +401,7 @@ class NatalView(QWidget):
                 self._aspects_table.setItem(row_index, column_index, QTableWidgetItem(value))
         self._chart_widget.set_chart(chart)
         self._chart_widget.set_transit_positions([])
+        self._transit_hits_table.setRowCount(0)
         self._export_button.setEnabled(True)
         self._clear_transits_button.setEnabled(False)
 
@@ -387,8 +411,27 @@ class NatalView(QWidget):
         self._chart_widget.set_transit_positions([])
         self._export_button.setEnabled(False)
         self._clear_transits_button.setEnabled(False)
-        for table in (self._planets_table, self._houses_table, self._aspects_table):
+        for table in (
+            self._planets_table,
+            self._houses_table,
+            self._aspects_table,
+            self._transit_hits_table,
+        ):
             table.setRowCount(0)
 
     def _set_status(self, message: str) -> None:
         self._status_label.setText(message)
+
+    def _populate_transit_hits(self, hits) -> None:
+        self._transit_hits_table.setRowCount(len(hits))
+        for row_index, hit in enumerate(hits):
+            values = [
+                hit.transit_body,
+                hit.natal_body,
+                hit.aspect_type,
+                f"{hit.orb:.2f}",
+                hit.phase,
+                hit.at_dt.isoformat(timespec="minutes"),
+            ]
+            for column_index, value in enumerate(values):
+                self._transit_hits_table.setItem(row_index, column_index, QTableWidgetItem(value))

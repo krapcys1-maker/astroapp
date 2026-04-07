@@ -10,6 +10,7 @@ from app.models.location_match import LocationMatch
 from app.models.person import Person
 from app.models.person_profile import PersonProfile
 from app.models.planet_position import PlanetPosition
+from app.models.transit_aspect_hit import TransitAspectHit
 from app.models.transit_query import TransitQuery
 
 __all__ = [
@@ -23,5 +24,6 @@ __all__ = [
     "Person",
     "PersonProfile",
     "PlanetPosition",
+    "TransitAspectHit",
     "TransitQuery",
 ]
