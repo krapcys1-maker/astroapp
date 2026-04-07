@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  unit:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -17,7 +17,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install dependencies
+      - name: Install unit dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e .[dev]
@@ -25,7 +25,33 @@ jobs:
       - name: Run Ruff
         run: ruff check .
 
-      - name: Run tests
+      - name: Run unit tests
         env:
           QT_QPA_PLATFORM: offscreen
-        run: pytest
+        run: pytest -m "not integration"
+
+  integration-astro:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install system build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config
+
+      - name: Install astro dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev,astro]
+
+      - name: Run Swiss integration tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: pytest -m integration

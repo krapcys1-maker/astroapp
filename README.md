@@ -66,3 +66,5 @@ Run tests and linting:
 pytest
 ruff check .
 ```
+
+Integration tests for the real Swiss Ephemeris backend live in a separate `integration` marker and are intended to run in CI with the optional `astro` dependencies installed.
