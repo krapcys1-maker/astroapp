@@ -46,13 +46,19 @@ python -m venv .venv
 pip install -e .[dev]
 ```
 
-Install the heavier astrology integration dependencies when you are ready to work on ephemeris, geocoding, and timezone lookup:
+Install the runtime astrology dependency when you are ready to calculate natal charts and transit searches:
 
 ```powershell
 pip install -e .[astro]
 ```
 
-On Windows, some optional `astro` dependencies may require Microsoft C++ Build Tools if prebuilt wheels are not available.
+For later work on geocoding and timezone lookup, install the separate lookup stack:
+
+```powershell
+pip install -e .[geo]
+```
+
+On Windows, the `astro` stack is configured around `pysweph`, which ships wheels for the common setups we are targeting. The optional `geo` stack may still require native build tools, depending on the `timezonefinder` wheel availability for your platform.
 
 Run the app:
 

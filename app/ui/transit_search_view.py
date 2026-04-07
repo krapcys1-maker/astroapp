@@ -7,8 +7,10 @@ from PySide6.QtWidgets import (
     QDateEdit,
     QDoubleSpinBox,
     QFormLayout,
+    QFrame,
     QGroupBox,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QLineEdit,
     QListWidget,
@@ -80,13 +82,45 @@ class TransitSearchView(QWidget):
         return None if person_id is None else int(person_id)
 
     def _build_ui(self) -> None:
-        layout = QVBoxLayout(self)
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        outer_layout.setSpacing(0)
+
+        centered_layout = QHBoxLayout()
+        centered_layout.setContentsMargins(0, 0, 0, 0)
+        centered_layout.setSpacing(0)
+        centered_layout.addStretch(1)
+
+        page = QWidget(self)
+        page.setMaximumWidth(1360)
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(16)
 
         title = QLabel("Transit Search")
-        title.setObjectName("transitTitle")
+        title.setObjectName("pageTitle")
         layout.addWidget(title)
 
+        subtitle = QLabel(
+            "Search date windows where transiting planets aspect a saved "
+            "natal chart, then filter and sort the result set."
+        )
+        subtitle.setObjectName("pageSubtitle")
+        subtitle.setWordWrap(True)
+        layout.addWidget(subtitle)
+
+        query_card = QFrame(page)
+        query_card.setObjectName("sectionCard")
+        query_layout = QVBoxLayout(query_card)
+        query_layout.setContentsMargins(22, 22, 22, 22)
+        query_layout.setSpacing(14)
+
+        query_heading = QLabel("Search setup")
+        query_heading.setObjectName("sectionHeading")
+        query_layout.addWidget(query_heading)
+
         form = QFormLayout()
+        form.setSpacing(10)
         self._person_selector = QComboBox()
         self._person_selector.currentIndexChanged.connect(self._refresh_recent_queries)
         self._recent_queries_selector = QComboBox()
@@ -111,9 +145,10 @@ class TransitSearchView(QWidget):
         form.addRow("End date", self._end_date_input)
         form.addRow("Orb", self._orb_input)
         form.addRow("Filter", self._filter_input)
-        layout.addLayout(form)
+        query_layout.addLayout(form)
 
         selectors = QHBoxLayout()
+        selectors.setSpacing(12)
         self._transit_bodies_list = self._create_multi_select_list(
             "transitBodiesList",
             BODY_OPTIONS,
@@ -129,24 +164,32 @@ class TransitSearchView(QWidget):
         selectors.addWidget(self._wrap_selector("Transit bodies", self._transit_bodies_list))
         selectors.addWidget(self._wrap_selector("Natal bodies", self._natal_bodies_list))
         selectors.addWidget(self._wrap_selector("Aspects", self._aspects_list))
-        layout.addLayout(selectors)
+        query_layout.addLayout(selectors)
 
         actions = QHBoxLayout()
         self._search_button = QPushButton("Run transit search")
         self._search_button.clicked.connect(self._run_search)
         self._sort_exact_button = QPushButton("Sort by exact time")
+        self._sort_exact_button.setObjectName("secondaryButton")
         self._sort_exact_button.clicked.connect(self._sort_by_exact)
         self._clear_button = QPushButton("Reset filters")
+        self._clear_button.setObjectName("secondaryButton")
         self._clear_button.clicked.connect(self._reset_form)
         actions.addWidget(self._search_button)
         actions.addWidget(self._sort_exact_button)
         actions.addWidget(self._clear_button)
-        layout.addLayout(actions)
+        query_layout.addLayout(actions)
 
         self._status_label = QLabel("")
-        self._status_label.setObjectName("transitStatus")
-        layout.addWidget(self._status_label)
+        self._status_label.setObjectName("statusBanner")
+        self._status_label.setWordWrap(True)
+        query_layout.addWidget(self._status_label)
 
+        layout.addWidget(query_card)
+
+        results_group = QGroupBox("Results")
+        results_layout = QVBoxLayout(results_group)
+        results_layout.setContentsMargins(16, 18, 16, 16)
         self._results_table = QTableWidget(0, 9)
         self._results_table.setObjectName("transitResultsTable")
         self._results_table.setHorizontalHeaderLabels(
@@ -165,13 +208,26 @@ class TransitSearchView(QWidget):
         self._results_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._results_table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
         self._results_table.setSortingEnabled(True)
-        self._results_table.horizontalHeader().setStretchLastSection(True)
-        layout.addWidget(self._results_table)
+        self._results_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self._results_table.verticalHeader().setVisible(False)
+        self._results_table.setMinimumHeight(280)
+        results_layout.addWidget(self._results_table)
+        layout.addWidget(results_group)
         layout.addStretch(1)
+
+        centered_layout.addWidget(page)
+        centered_layout.addStretch(1)
+        outer_layout.addLayout(centered_layout)
+        outer_layout.addStretch(1)
 
         self._select_all(self._transit_bodies_list)
         self._select_all(self._natal_bodies_list)
         self._select_all(self._aspects_list)
+        service_available = self._transit_service is not None
+        self._search_button.setEnabled(service_available)
+        self._sort_exact_button.setEnabled(service_available)
+        if not service_available and self._transit_error:
+            self._set_status(self._transit_error)
 
     @staticmethod
     def _create_multi_select_list(object_name: str, values: tuple[str, ...]) -> QListWidget:
@@ -186,6 +242,7 @@ class TransitSearchView(QWidget):
     def _wrap_selector(title: str, widget: QListWidget) -> QGroupBox:
         group = QGroupBox(title)
         layout = QVBoxLayout(group)
+        layout.setContentsMargins(12, 18, 12, 12)
         layout.addWidget(widget)
         return group
 

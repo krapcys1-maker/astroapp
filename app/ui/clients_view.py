@@ -5,13 +5,14 @@ from PySide6.QtWidgets import (
     QDateEdit,
     QDoubleSpinBox,
     QFormLayout,
+    QFrame,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
     QPushButton,
-    QSplitter,
     QTextEdit,
     QTimeEdit,
     QVBoxLayout,
@@ -47,32 +48,113 @@ class ClientsView(QWidget):
                 self._clients_list.setCurrentItem(item)
         if self._clients_list.count() == 0:
             self._set_empty_form()
+        elif self._clients_list.currentItem() is None:
+            self._clients_list.setCurrentRow(0)
 
     def _build_ui(self) -> None:
-        layout = QVBoxLayout(self)
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        outer_layout.setSpacing(0)
+
+        centered_layout = QHBoxLayout()
+        centered_layout.setContentsMargins(0, 0, 0, 0)
+        centered_layout.setSpacing(0)
+        centered_layout.addStretch(1)
+
+        page = QWidget(self)
+        page.setMaximumWidth(1320)
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(16)
 
         title = QLabel("Clients")
-        title.setObjectName("clientsTitle")
+        title.setObjectName("pageTitle")
         layout.addWidget(title)
 
-        splitter = QSplitter(self)
-        self._clients_list = QListWidget(splitter)
+        subtitle = QLabel(
+            "Create and maintain birth profiles before calculating charts "
+            "or running transit windows."
+        )
+        subtitle.setObjectName("pageSubtitle")
+        subtitle.setWordWrap(True)
+        layout.addWidget(subtitle)
+
+        body = QHBoxLayout()
+        body.setSpacing(16)
+
+        list_card = QFrame(page)
+        list_card.setObjectName("sectionCard")
+        list_card.setMinimumWidth(280)
+        list_card.setMaximumWidth(320)
+        list_layout = QVBoxLayout(list_card)
+        list_layout.setContentsMargins(18, 18, 18, 18)
+        list_layout.setSpacing(12)
+
+        list_heading = QLabel("Client library")
+        list_heading.setObjectName("sectionHeading")
+        list_layout.addWidget(list_heading)
+
+        list_help = QLabel("Saved profiles stay local in your workspace database.")
+        list_help.setObjectName("metaLabel")
+        list_help.setWordWrap(True)
+        list_layout.addWidget(list_help)
+
+        self._clients_list = QListWidget(list_card)
         self._clients_list.setObjectName("clientsList")
         self._clients_list.currentItemChanged.connect(self._on_person_changed)
+        list_layout.addWidget(self._clients_list, 1)
 
-        form_panel = QWidget(splitter)
-        form_layout = QVBoxLayout(form_panel)
-        fields = QFormLayout()
+        editor_wrapper = QWidget(page)
+        editor_wrapper_layout = QVBoxLayout(editor_wrapper)
+        editor_wrapper_layout.setContentsMargins(0, 0, 0, 0)
+        editor_wrapper_layout.setSpacing(0)
+
+        editor_card = QFrame(editor_wrapper)
+        editor_card.setObjectName("sectionCard")
+        editor_card.setMaximumWidth(940)
+        editor_layout = QVBoxLayout(editor_card)
+        editor_layout.setContentsMargins(22, 22, 22, 22)
+        editor_layout.setSpacing(14)
+
+        editor_heading = QLabel("Profile details")
+        editor_heading.setObjectName("sectionHeading")
+        editor_layout.addWidget(editor_heading)
+
+        editor_help = QLabel(
+            "Keep name, notes, coordinates, and timezone together so later "
+            "calculations are reproducible."
+        )
+        editor_help.setObjectName("metaLabel")
+        editor_help.setWordWrap(True)
+        editor_layout.addWidget(editor_help)
+
+        profile_group = QGroupBox("Profile")
+        profile_fields = QFormLayout(profile_group)
+        profile_fields.setContentsMargins(16, 18, 16, 16)
+        profile_fields.setSpacing(10)
 
         self._name_input = QLineEdit()
+        self._name_input.setPlaceholderText("Client name")
         self._notes_input = QTextEdit()
+        self._notes_input.setMinimumHeight(120)
+        self._notes_input.setPlaceholderText("Context, reminders, or reading notes")
+        profile_fields.addRow("Name", self._name_input)
+        profile_fields.addRow("Notes", self._notes_input)
+
+        birth_group = QGroupBox("Birth data")
+        birth_fields = QFormLayout(birth_group)
+        birth_fields.setContentsMargins(16, 18, 16, 16)
+        birth_fields.setSpacing(10)
+
         self._birth_date_input = QDateEdit()
         self._birth_date_input.setCalendarPopup(True)
         self._birth_date_input.setDate(QDate(1990, 1, 1))
         self._birth_time_input = QTimeEdit()
         self._birth_time_input.setTime(QTime(12, 0))
         self._city_input = QLineEdit()
+        self._city_input.setPlaceholderText("City")
         self._country_input = QLineEdit()
+        self._country_input.setPlaceholderText("Country")
         self._latitude_input = QDoubleSpinBox()
         self._latitude_input.setDecimals(6)
         self._latitude_input.setRange(-90.0, 90.0)
@@ -80,36 +162,47 @@ class ClientsView(QWidget):
         self._longitude_input.setDecimals(6)
         self._longitude_input.setRange(-180.0, 180.0)
         self._timezone_input = QLineEdit()
+        self._timezone_input.setPlaceholderText("Europe/Warsaw")
         self._timezone_input.setText("UTC")
 
-        fields.addRow("Name", self._name_input)
-        fields.addRow("Notes", self._notes_input)
-        fields.addRow("Birth date", self._birth_date_input)
-        fields.addRow("Birth time", self._birth_time_input)
-        fields.addRow("City", self._city_input)
-        fields.addRow("Country", self._country_input)
-        fields.addRow("Latitude", self._latitude_input)
-        fields.addRow("Longitude", self._longitude_input)
-        fields.addRow("Timezone", self._timezone_input)
-        form_layout.addLayout(fields)
+        birth_fields.addRow("Birth date", self._birth_date_input)
+        birth_fields.addRow("Birth time", self._birth_time_input)
+        birth_fields.addRow("City", self._city_input)
+        birth_fields.addRow("Country", self._country_input)
+        birth_fields.addRow("Latitude", self._latitude_input)
+        birth_fields.addRow("Longitude", self._longitude_input)
+        birth_fields.addRow("Timezone", self._timezone_input)
 
         actions = QHBoxLayout()
         self._new_button = QPushButton("New client")
+        self._new_button.setObjectName("secondaryButton")
         self._new_button.clicked.connect(self._on_new_clicked)
         self._save_button = QPushButton("Save client")
         self._save_button.clicked.connect(self._on_save_clicked)
         actions.addWidget(self._new_button)
         actions.addWidget(self._save_button)
-        form_layout.addLayout(actions)
 
         self._status_label = QLabel("")
-        self._status_label.setObjectName("clientsStatus")
-        form_layout.addWidget(self._status_label)
-        form_layout.addStretch(1)
+        self._status_label.setObjectName("statusBanner")
+        self._status_label.setWordWrap(True)
 
-        splitter.addWidget(form_panel)
-        splitter.setStretchFactor(1, 1)
-        layout.addWidget(splitter)
+        editor_layout.addWidget(profile_group)
+        editor_layout.addWidget(birth_group)
+        editor_layout.addLayout(actions)
+        editor_layout.addWidget(self._status_label)
+        editor_layout.addStretch(1)
+
+        editor_wrapper_layout.addWidget(editor_card)
+        editor_wrapper_layout.addStretch(1)
+
+        body.addWidget(list_card)
+        body.addWidget(editor_wrapper, 1)
+        layout.addLayout(body)
+
+        centered_layout.addWidget(page)
+        centered_layout.addStretch(1)
+        outer_layout.addLayout(centered_layout)
+        outer_layout.addStretch(1)
 
     def _set_empty_form(self) -> None:
         self._current_person_id = None

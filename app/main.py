@@ -15,6 +15,7 @@ def create_application() -> QApplication:
     app = QApplication.instance()
     if app is None:
         app = QApplication(sys.argv)
+    app.setStyle("Fusion")
     app.setApplicationName("astroapp")
     app.setOrganizationName("astroapp")
     return app

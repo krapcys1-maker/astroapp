@@ -10,6 +10,7 @@ from app.engine.ephemeris.backend import HouseCusps, PlanetLongitude
 from app.engine.ephemeris.swiss_ephemeris_backend import (
     SwissEphemerisBackend,
     _load_swiss_module,
+    _unpack_calc_result,
 )
 
 
@@ -160,3 +161,10 @@ def test_loading_swiss_module_without_dependency_raises_helpful_error(monkeypatc
 
     with pytest.raises(RuntimeError, match="pip install -e .\\[astro\\]"):
         _load_swiss_module()
+
+
+def test_unpack_calc_result_accepts_real_pysweph_shape() -> None:
+    values, retflag = _unpack_calc_result(([1.0, 2.0, 3.0], 260, "fallback"))
+
+    assert values == [1.0, 2.0, 3.0]
+    assert retflag == 260

@@ -17,8 +17,10 @@ dependencies = [
 
 [project.optional-dependencies]
 astro = [
+  "pysweph>=2.10.3.6,<3.0",
+]
+geo = [
   "geopy>=2.4,<3.0",
-  "pyswisseph>=2.10.3.2,<3.0",
   "timezonefinder>=6.5,<7.0",
 ]
 dev = [

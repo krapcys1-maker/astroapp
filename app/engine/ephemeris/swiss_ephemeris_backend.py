@@ -71,6 +71,20 @@ def _normalize_house_system(house_system: str) -> bytes:
     return code.encode("ascii")
 
 
+def _unpack_calc_result(result: Any) -> tuple[tuple[float, ...] | list[float], int]:
+    if not isinstance(result, tuple):
+        msg = "Swiss Ephemeris returned an unexpected calc_ut payload."
+        raise ValueError(msg)
+    if len(result) == 2:
+        values, retflag = result
+        return values, int(retflag)
+    if len(result) == 3:
+        values, retflag, _message = result
+        return values, int(retflag)
+    msg = "Swiss Ephemeris returned an unexpected calc_ut payload."
+    raise ValueError(msg)
+
+
 def _extract_house_cusps(raw_cusps: tuple[float, ...] | list[float]) -> tuple[float, ...]:
     if len(raw_cusps) == 13:
         relevant = raw_cusps[1:13]
@@ -98,7 +112,9 @@ class SwissEphemerisBackend:
 
         julian_day = _julian_day(self._swe, dt_utc)
         body_code = getattr(self._swe, body_code_name)
-        values, retflag = self._swe.calc_ut(julian_day, body_code, self._planet_flags)
+        values, retflag = _unpack_calc_result(
+            self._swe.calc_ut(julian_day, body_code, self._planet_flags)
+        )
         return PlanetLongitude(
             body=body,
             longitude=normalize_longitude(values[0]),
