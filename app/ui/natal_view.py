@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QPushButton,
+    QScrollArea,
     QTableWidget,
     QTableWidgetItem,
     QTimeEdit,
@@ -78,7 +79,15 @@ class NatalView(QWidget):
         outer_layout.setContentsMargins(0, 0, 0, 0)
         outer_layout.setSpacing(0)
 
-        centered_layout = QHBoxLayout()
+        scroll_area = QScrollArea(self)
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QScrollArea.Shape.NoFrame)
+        outer_layout.addWidget(scroll_area)
+
+        scroll_content = QWidget()
+        scroll_area.setWidget(scroll_content)
+
+        centered_layout = QHBoxLayout(scroll_content)
         centered_layout.setContentsMargins(0, 0, 0, 0)
         centered_layout.setSpacing(0)
         centered_layout.addStretch(1)
@@ -230,9 +239,6 @@ class NatalView(QWidget):
 
         centered_layout.addWidget(page)
         centered_layout.addStretch(1)
-        outer_layout.addLayout(centered_layout)
-        outer_layout.addStretch(1)
-
         service_available = self._natal_service is not None
         self._calculate_button.setEnabled(service_available)
         self._refresh_button.setEnabled(service_available)
