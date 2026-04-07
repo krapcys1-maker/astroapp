@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -101,6 +102,7 @@ class TransitSearchView(QWidget):
         centered_layout.addStretch(1)
 
         page = QWidget(self)
+        page.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         page.setMaximumWidth(1360)
         layout = QVBoxLayout(page)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -224,7 +226,7 @@ class TransitSearchView(QWidget):
         layout.addWidget(results_group)
         layout.addStretch(1)
 
-        centered_layout.addWidget(page)
+        centered_layout.addWidget(page, 1)
         centered_layout.addStretch(1)
         self._select_all(self._transit_bodies_list)
         self._select_all(self._natal_bodies_list)

@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPushButton,
+    QSizePolicy,
     QTextEdit,
     QTimeEdit,
     QVBoxLayout,
@@ -72,6 +73,7 @@ class ClientsView(QWidget):
         centered_layout.addStretch(1)
 
         page = QWidget(self)
+        page.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         page.setMaximumWidth(1320)
         layout = QVBoxLayout(page)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -229,7 +231,7 @@ class ClientsView(QWidget):
         body.addWidget(editor_wrapper, 1)
         layout.addLayout(body)
 
-        centered_layout.addWidget(page)
+        centered_layout.addWidget(page, 1)
         centered_layout.addStretch(1)
         outer_layout.addLayout(centered_layout)
         outer_layout.addStretch(1)

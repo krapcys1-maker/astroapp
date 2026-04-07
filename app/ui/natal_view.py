@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QTableWidget,
     QTableWidgetItem,
     QTimeEdit,
@@ -93,6 +94,7 @@ class NatalView(QWidget):
         centered_layout.addStretch(1)
 
         page = QWidget(self)
+        page.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         page.setMaximumWidth(1360)
         layout = QVBoxLayout(page)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -237,7 +239,7 @@ class NatalView(QWidget):
         layout.addWidget(transit_hits_group)
         layout.addStretch(1)
 
-        centered_layout.addWidget(page)
+        centered_layout.addWidget(page, 1)
         centered_layout.addStretch(1)
         service_available = self._natal_service is not None
         self._calculate_button.setEnabled(service_available)
