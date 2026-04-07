@@ -154,8 +154,10 @@ class NatalView(QWidget):
         self._transit_date_input = QDateEdit()
         self._transit_date_input.setCalendarPopup(True)
         self._transit_date_input.setDate(QDate.currentDate())
+        self._transit_date_input.setDisplayFormat("yyyy-MM-dd")
         self._transit_time_input = QTimeEdit()
         self._transit_time_input.setTime(QTime.currentTime())
+        self._transit_time_input.setDisplayFormat("HH:mm")
         self._transit_orb_input = QDoubleSpinBox()
         self._transit_orb_input.setRange(0.1, 10.0)
         self._transit_orb_input.setDecimals(1)
@@ -368,10 +370,10 @@ class NatalView(QWidget):
 
     def _populate_chart(self, chart: Chart) -> None:
         self._meta_label.setText(
-            f"Calculated at {chart.calculated_at.isoformat()} | "
+            f"Birth UTC {chart.calculated_at.isoformat()} | "
             f"ASC {chart.ascendant:.2f} | MC {chart.midheaven:.2f}"
             if chart.ascendant is not None and chart.midheaven is not None
-            else f"Calculated at {chart.calculated_at.isoformat()}"
+            else f"Birth UTC {chart.calculated_at.isoformat()}"
         )
 
         self._planets_table.setRowCount(len(chart.planet_positions))
