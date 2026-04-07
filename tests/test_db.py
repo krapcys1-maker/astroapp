@@ -24,6 +24,8 @@ def test_initialize_database_creates_bootstrap_tables(tmp_path: Path) -> None:
 
     assert "schema_migrations" in tables
     assert "app_metadata" in tables
+    assert "people" in tables
+    assert "birth_data" in tables
     assert schema_version == (str(SCHEMA_VERSION),)
 
 

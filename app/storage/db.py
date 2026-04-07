@@ -3,7 +3,9 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+from app.storage.migrations import LATEST_SCHEMA_VERSION, apply_migrations
+
+SCHEMA_VERSION = LATEST_SCHEMA_VERSION
 
 
 def connect_sqlite(database_path: Path) -> sqlite3.Connection:
@@ -16,31 +18,4 @@ def connect_sqlite(database_path: Path) -> sqlite3.Connection:
 
 def initialize_database(database_path: Path) -> None:
     with connect_sqlite(database_path) as connection:
-        connection.executescript(
-            """
-            CREATE TABLE IF NOT EXISTS schema_migrations (
-                version INTEGER PRIMARY KEY,
-                applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-            );
-
-            CREATE TABLE IF NOT EXISTS app_metadata (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL
-            );
-            """
-        )
-        connection.execute(
-            """
-            INSERT OR IGNORE INTO schema_migrations(version)
-            VALUES (?)
-            """,
-            (SCHEMA_VERSION,),
-        )
-        connection.execute(
-            """
-            INSERT INTO app_metadata(key, value)
-            VALUES ('schema_version', ?)
-            ON CONFLICT(key) DO UPDATE SET value = excluded.value
-            """,
-            (str(SCHEMA_VERSION),),
-        )
+        apply_migrations(connection)
