@@ -4,12 +4,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol, runtime_checkable
 
+from app.utils.angle_utils import normalize_angle
+
 
 def normalize_longitude(value: float) -> float:
-    normalized = value % 360.0
-    if normalized < 0:
-        normalized += 360.0
-    return normalized
+    return normalize_angle(value)
 
 
 def require_utc_datetime(value: datetime) -> datetime:
