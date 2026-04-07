@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from PySide6.QtWidgets import (
     QComboBox,
+    QFileDialog,
     QFormLayout,
     QFrame,
     QGroupBox,
@@ -115,8 +118,12 @@ class NatalView(QWidget):
         self._refresh_button = QPushButton("Reload saved chart")
         self._refresh_button.setObjectName("secondaryButton")
         self._refresh_button.clicked.connect(self._load_saved_chart)
+        self._export_button = QPushButton("Export PNG")
+        self._export_button.setObjectName("secondaryButton")
+        self._export_button.clicked.connect(self._export_chart)
         actions.addWidget(self._calculate_button)
         actions.addWidget(self._refresh_button)
+        actions.addWidget(self._export_button)
         controls_layout.addLayout(actions)
 
         self._status_label = QLabel("")
@@ -179,6 +186,7 @@ class NatalView(QWidget):
         service_available = self._natal_service is not None
         self._calculate_button.setEnabled(service_available)
         self._refresh_button.setEnabled(service_available)
+        self._export_button.setEnabled(False)
         if not service_available and self._natal_error:
             self._set_status(self._natal_error)
 
@@ -228,6 +236,31 @@ class NatalView(QWidget):
         self._populate_chart(chart)
         self._set_status("Natal chart calculated and saved.")
 
+    def _export_chart(self) -> None:
+        if self._chart_widget.chart is None:
+            self._set_status("Calculate or load a chart before exporting.")
+            return
+        person_id = self.current_person_id()
+        default_name = "natal-chart.png" if person_id is None else f"natal-chart-{person_id}.png"
+        selected_path, _selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Export natal chart",
+            default_name,
+            "PNG Image (*.png)",
+        )
+        if not selected_path:
+            return
+        self._export_chart_to_path(Path(selected_path))
+
+    def _export_chart_to_path(self, path: Path) -> bool:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        exported = self._chart_widget.export_png(path)
+        if exported:
+            self._set_status(f"Exported natal chart to {path.name}.")
+        else:
+            self._set_status("Natal chart export failed.")
+        return exported
+
     def _populate_chart(self, chart: Chart) -> None:
         self._meta_label.setText(
             f"Calculated at {chart.calculated_at.isoformat()} | "
@@ -270,10 +303,12 @@ class NatalView(QWidget):
             for column_index, value in enumerate(values):
                 self._aspects_table.setItem(row_index, column_index, QTableWidgetItem(value))
         self._chart_widget.set_chart(chart)
+        self._export_button.setEnabled(True)
 
     def _clear_tables(self) -> None:
         self._meta_label.setText("No chart loaded.")
         self._chart_widget.set_chart(None)
+        self._export_button.setEnabled(False)
         for table in (self._planets_table, self._houses_table, self._aspects_table):
             table.setRowCount(0)
 

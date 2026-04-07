@@ -163,3 +163,54 @@ def test_main_window_client_and_natal_workflow(tmp_path) -> None:
     assert "found 1 transit events" in transit_view._status_label.text().lower()
     assert transit_view._recent_queries_selector.count() == 2
     assert transit_service.queries[0].selected_transit_bodies == ("Mars",)
+
+
+def test_natal_chart_widget_exports_png(tmp_path) -> None:
+    from app.main import create_application
+    from app.ui.widgets import NatalChartWidget
+
+    application = create_application()
+    widget = NatalChartWidget()
+    widget.resize(640, 640)
+    widget.set_chart(
+        Chart(
+            id=1,
+            person_id=1,
+            chart_type="natal",
+            house_system="Placidus",
+            zodiac_type="tropical",
+            calculated_at=datetime(2026, 4, 7, 10, 0, tzinfo=UTC),
+            ascendant=11.5,
+            midheaven=222.0,
+            planet_positions=[
+                PlanetPosition("Sun", 10.0, "Aries", 10.0, False, 1),
+                PlanetPosition("Moon", 13.0, "Aries", 13.0, False, 1),
+                PlanetPosition("Mercury", 16.0, "Aries", 16.0, False, 1),
+            ],
+            house_cusps=[
+                HouseCusp(1, 0.0),
+                HouseCusp(2, 30.0),
+                HouseCusp(3, 60.0),
+                HouseCusp(4, 90.0),
+                HouseCusp(5, 120.0),
+                HouseCusp(6, 150.0),
+                HouseCusp(7, 180.0),
+                HouseCusp(8, 210.0),
+                HouseCusp(9, 240.0),
+                HouseCusp(10, 270.0),
+                HouseCusp(11, 300.0),
+                HouseCusp(12, 330.0),
+            ],
+            aspects=[
+                Aspect("Sun", "Moon", "conjunction", 3.0, "applying"),
+                Aspect("Sun", "Mercury", "conjunction", 6.0, "applying"),
+            ],
+        )
+    )
+    widget.show()
+    application.processEvents()
+
+    export_path = tmp_path / "chart.png"
+    assert widget.export_png(export_path) is True
+    assert export_path.exists()
+    assert export_path.stat().st_size > 0
