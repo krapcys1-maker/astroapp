@@ -46,4 +46,5 @@ testpaths = ["tests"]
 addopts = "-q"
 markers = [
   "integration: tests that exercise optional real integrations",
+  "ui: tests that require Qt and desktop libraries",
 ]

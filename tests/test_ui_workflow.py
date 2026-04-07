@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import pytest
+
 from app.config.settings import AppSettings
 from app.main import create_application
 from app.models.aspect import Aspect
@@ -12,6 +14,8 @@ from app.models.planet_position import PlanetPosition
 from app.services.person_service import PersonService
 from app.storage.db import initialize_database
 from app.ui.main_window import MainWindow
+
+pytestmark = pytest.mark.ui
 
 
 class FakeNatalService:
