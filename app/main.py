@@ -20,6 +20,7 @@ def create_application() -> QApplication:
 
 def main() -> int:
     settings = AppSettings.from_environment()
+    settings.ensure_directories()
     initialize_database(settings.database_path)
     application = create_application()
     window = MainWindow(settings=settings)

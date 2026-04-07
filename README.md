@@ -52,6 +52,8 @@ Install the heavier astrology integration dependencies when you are ready to wor
 pip install -e .[astro]
 ```
 
+On Windows, some optional `astro` dependencies may require Microsoft C++ Build Tools if prebuilt wheels are not available.
+
 Run the app:
 
 ```powershell
