@@ -50,9 +50,59 @@ def _migration_002_people_and_birth_data(connection: sqlite3.Connection) -> None
     )
 
 
+def _migration_003_charts(connection: sqlite3.Connection) -> None:
+    connection.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS charts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            person_id INTEGER NOT NULL,
+            chart_type TEXT NOT NULL,
+            house_system TEXT NOT NULL,
+            zodiac_type TEXT NOT NULL,
+            calculated_at TEXT NOT NULL,
+            ascendant REAL,
+            midheaven REAL,
+            FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS planet_positions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chart_id INTEGER NOT NULL,
+            body TEXT NOT NULL,
+            longitude REAL NOT NULL,
+            sign TEXT NOT NULL,
+            degree_in_sign REAL NOT NULL,
+            retrograde INTEGER NOT NULL,
+            house INTEGER,
+            FOREIGN KEY (chart_id) REFERENCES charts(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS house_cusps (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chart_id INTEGER NOT NULL,
+            house_number INTEGER NOT NULL,
+            longitude REAL NOT NULL,
+            FOREIGN KEY (chart_id) REFERENCES charts(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS aspects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chart_id INTEGER NOT NULL,
+            body_a TEXT NOT NULL,
+            body_b TEXT NOT NULL,
+            aspect_type TEXT NOT NULL,
+            orb REAL NOT NULL,
+            phase TEXT NOT NULL,
+            FOREIGN KEY (chart_id) REFERENCES charts(id) ON DELETE CASCADE
+        );
+        """
+    )
+
+
 MIGRATIONS: dict[int, Migration] = {
     1: _migration_001_base,
     2: _migration_002_people_and_birth_data,
+    3: _migration_003_charts,
 }
 
 LATEST_SCHEMA_VERSION = max(MIGRATIONS)
