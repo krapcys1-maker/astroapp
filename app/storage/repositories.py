@@ -11,6 +11,7 @@ from app.models.house_cusp import HouseCusp
 from app.models.person import Person
 from app.models.person_profile import PersonProfile
 from app.models.planet_position import PlanetPosition
+from app.models.transit_query import TransitQuery
 from app.storage.db import connect_sqlite
 
 
@@ -88,6 +89,29 @@ def _aspect_from_row(row: Row) -> Aspect:
         aspect_type=row["aspect_type"],
         orb=row["orb"],
         phase=row["phase"],
+    )
+
+
+def _serialize_tuple(values: tuple[str, ...]) -> str:
+    return ",".join(values)
+
+
+def _deserialize_tuple(value: str) -> tuple[str, ...]:
+    if not value:
+        return ()
+    return tuple(chunk for chunk in value.split(",") if chunk)
+
+
+def _transit_query_from_row(row: Row) -> TransitQuery:
+    return TransitQuery(
+        id=row["id"],
+        person_id=row["person_id"],
+        start_date=_parse_date(row["start_date"]),
+        end_date=_parse_date(row["end_date"]),
+        orb=row["orb"],
+        selected_transit_bodies=_deserialize_tuple(row["selected_transit_bodies"]),
+        selected_natal_bodies=_deserialize_tuple(row["selected_natal_bodies"]),
+        selected_aspects=_deserialize_tuple(row["selected_aspects"]),
     )
 
 
@@ -438,3 +462,73 @@ class ChartRepository:
             (chart_id,),
         ).fetchall()
         return [_aspect_from_row(row) for row in rows]
+
+
+class TransitQueryRepository:
+    def __init__(self, database_path: Path) -> None:
+        self._database_path = database_path
+
+    def save(self, query: TransitQuery) -> TransitQuery:
+        with connect_sqlite(self._database_path) as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO transit_queries(
+                    person_id,
+                    start_date,
+                    end_date,
+                    orb,
+                    selected_transit_bodies,
+                    selected_natal_bodies,
+                    selected_aspects
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    query.person_id,
+                    query.start_date.isoformat(),
+                    query.end_date.isoformat(),
+                    query.orb,
+                    _serialize_tuple(query.selected_transit_bodies),
+                    _serialize_tuple(query.selected_natal_bodies),
+                    _serialize_tuple(query.selected_aspects),
+                ),
+            )
+        return TransitQuery(
+            id=cursor.lastrowid,
+            person_id=query.person_id,
+            start_date=query.start_date,
+            end_date=query.end_date,
+            orb=query.orb,
+            selected_transit_bodies=query.selected_transit_bodies,
+            selected_natal_bodies=query.selected_natal_bodies,
+            selected_aspects=query.selected_aspects,
+        )
+
+    def list_recent(
+        self,
+        *,
+        person_id: int | None = None,
+        limit: int = 10,
+    ) -> list[TransitQuery]:
+        sql = """
+            SELECT
+                id,
+                person_id,
+                start_date,
+                end_date,
+                orb,
+                selected_transit_bodies,
+                selected_natal_bodies,
+                selected_aspects
+            FROM transit_queries
+        """
+        params: tuple[object, ...]
+        if person_id is None:
+            sql += " ORDER BY id DESC LIMIT ?"
+            params = (limit,)
+        else:
+            sql += " WHERE person_id = ? ORDER BY id DESC LIMIT ?"
+            params = (person_id, limit)
+        with connect_sqlite(self._database_path) as connection:
+            rows = connection.execute(sql, params).fetchall()
+        return [_transit_query_from_row(row) for row in rows]

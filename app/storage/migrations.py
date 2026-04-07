@@ -99,10 +99,30 @@ def _migration_003_charts(connection: sqlite3.Connection) -> None:
     )
 
 
+def _migration_004_transit_queries(connection: sqlite3.Connection) -> None:
+    connection.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS transit_queries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            person_id INTEGER NOT NULL,
+            start_date TEXT NOT NULL,
+            end_date TEXT NOT NULL,
+            orb REAL NOT NULL,
+            selected_transit_bodies TEXT NOT NULL,
+            selected_natal_bodies TEXT NOT NULL,
+            selected_aspects TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE CASCADE
+        );
+        """
+    )
+
+
 MIGRATIONS: dict[int, Migration] = {
     1: _migration_001_base,
     2: _migration_002_people_and_birth_data,
     3: _migration_003_charts,
+    4: _migration_004_transit_queries,
 }
 
 LATEST_SCHEMA_VERSION = max(MIGRATIONS)

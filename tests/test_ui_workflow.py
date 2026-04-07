@@ -52,8 +52,11 @@ class FakeNatalService:
 
 
 class FakeTransitService:
+    def __init__(self) -> None:
+        self.queries = []
+
     def search(self, query) -> list[AspectEvent]:
-        del query
+        self.queries.append(query)
 
         return [
             AspectEvent(
@@ -67,6 +70,12 @@ class FakeTransitService:
                 phase="applying-separating",
             )
         ]
+
+    def list_recent_queries(self, *, person_id: int | None = None, limit: int = 10):
+        del limit
+        if person_id is None:
+            return list(reversed(self.queries))
+        return [query for query in reversed(self.queries) if query.person_id == person_id]
 
 
 def test_main_window_client_and_natal_workflow(tmp_path) -> None:
@@ -117,8 +126,16 @@ def test_main_window_client_and_natal_workflow(tmp_path) -> None:
     application.processEvents()
 
     transit_view = window._transit_view
+    transit_view._transit_bodies_list.clearSelection()
+    transit_view._natal_bodies_list.clearSelection()
+    transit_view._aspects_list.clearSelection()
+    transit_view._transit_bodies_list.item(4).setSelected(True)
+    transit_view._natal_bodies_list.item(0).setSelected(True)
+    transit_view._aspects_list.item(3).setSelected(True)
     transit_view._search_button.click()
     application.processEvents()
 
     assert transit_view._results_table.rowCount() == 1
     assert "found 1 transit events" in transit_view._status_label.text().lower()
+    assert transit_view._recent_queries_selector.count() == 2
+    assert transit_service.queries[0].selected_transit_bodies == ("Mars",)

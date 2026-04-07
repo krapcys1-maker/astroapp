@@ -6,6 +6,7 @@ from app.storage.repositories import (
     ChartRepository,
     PersonProfileRepository,
     PersonRepository,
+    TransitQueryRepository,
 )
 
 __all__ = [
@@ -13,6 +14,7 @@ __all__ = [
     "ChartRepository",
     "PersonProfileRepository",
     "PersonRepository",
+    "TransitQueryRepository",
     "SCHEMA_VERSION",
     "connect_sqlite",
     "initialize_database",

@@ -188,3 +188,31 @@ def test_transit_service_can_load_latest_natal_chart_from_repository(tmp_path: P
 
     assert len(events) == 1
     assert events[0].natal_body == "Sun"
+
+
+def test_transit_service_saves_recent_query_when_repository_is_available(tmp_path: Path) -> None:
+    database_path = tmp_path / "recent-transits.sqlite3"
+    initialize_database(database_path)
+    people = PersonRepository(database_path)
+    charts = ChartRepository(database_path)
+    person = people.create(Person(name="Recent Transit Client"))
+    assert person.id is not None
+    charts.save(build_natal_chart(person.id, natal_longitude=20.0))
+
+    backend = LinearTransitBackend({"Mars": (13.0, 3.0)})
+    service = TransitService(backend, database_path=database_path)
+    query = TransitQuery(
+        person_id=person.id,
+        start_date=date(2026, 1, 2),
+        end_date=date(2026, 1, 4),
+        orb=3.0,
+        selected_transit_bodies=("Mars",),
+        selected_natal_bodies=("Sun",),
+        selected_aspects=("conjunction",),
+    )
+
+    service.search(query)
+    recent = service.list_recent_queries(person_id=person.id)
+
+    assert len(recent) == 1
+    assert recent[0].selected_transit_bodies == ("Mars",)

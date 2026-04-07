@@ -8,7 +8,7 @@ from app.engine.transit import AspectScanner, TransitPositionSampler
 from app.models.aspect_event import AspectEvent
 from app.models.chart import Chart
 from app.models.transit_query import TransitQuery
-from app.storage.repositories import ChartRepository
+from app.storage.repositories import ChartRepository, TransitQueryRepository
 
 
 class TransitService:
@@ -21,25 +21,37 @@ class TransitService:
         self._sampler = TransitPositionSampler(backend)
         self._scanner = AspectScanner(backend)
         self._charts = None if database_path is None else ChartRepository(database_path)
+        self._queries = None if database_path is None else TransitQueryRepository(database_path)
 
     def search(
         self,
         query: TransitQuery,
         natal_chart: Chart | None = None,
     ) -> list[AspectEvent]:
+        saved_query = self._save_query_if_possible(query)
         chart = natal_chart or self._get_required_natal_chart(query.person_id)
-        window_start, window_end = self._window_for_query(query)
-        transit_bodies = query.selected_transit_bodies or tuple(
+        window_start, window_end = self._window_for_query(saved_query)
+        transit_bodies = saved_query.selected_transit_bodies or tuple(
             position.body for position in chart.planet_positions
         )
         samples = self._sampler.sample(window_start, window_end, transit_bodies)
         return self._scanner.scan(
-            query,
+            saved_query,
             chart,
             samples,
             window_start=window_start,
             window_end=window_end,
         )
+
+    def list_recent_queries(
+        self,
+        *,
+        person_id: int | None = None,
+        limit: int = 10,
+    ) -> list[TransitQuery]:
+        if self._queries is None:
+            return []
+        return self._queries.list_recent(person_id=person_id, limit=limit)
 
     def _get_required_natal_chart(self, person_id: int) -> Chart:
         if self._charts is None:
@@ -50,6 +62,11 @@ class TransitService:
             msg = f"No natal chart found for person_id={person_id}."
             raise LookupError(msg)
         return chart
+
+    def _save_query_if_possible(self, query: TransitQuery) -> TransitQuery:
+        if self._queries is None:
+            return query
+        return self._queries.save(query)
 
     @staticmethod
     def _window_for_query(query: TransitQuery) -> tuple[datetime, datetime]:
