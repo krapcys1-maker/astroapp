@@ -28,6 +28,11 @@ def shortest_angular_distance(first: float, second: float) -> float:
     return min(difference, 360.0 - difference)
 
 
+def signed_angular_difference(first: float, second: float) -> float:
+    difference = (normalize_angle(first) - normalize_angle(second) + 180.0) % 360.0 - 180.0
+    return difference
+
+
 def is_angle_between(target: float, start: float, end: float) -> bool:
     normalized_target = normalize_angle(target)
     normalized_start = normalize_angle(start)
