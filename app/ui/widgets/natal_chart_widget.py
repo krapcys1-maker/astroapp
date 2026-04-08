@@ -166,7 +166,8 @@ class NatalChartWidget(QWidget):
             self._draw_empty_state(painter)
             return
 
-        side = min(self.width(), self.height()) - 60
+        outer_padding = 140 if self._transit_positions else 110
+        side = min(self.width(), self.height()) - outer_padding
         outer_radius = side / 2
         center = QPointF(self.width() / 2, self.height() / 2)
 
@@ -175,7 +176,6 @@ class NatalChartWidget(QWidget):
         zodiac_inner_radius = outer_wheel.inner_border_radius
         house_outer_radius = geometry.house_outer_radius
         house_inner_radius = geometry.house_inner_radius
-        aspect_radius = geometry.aspect_radius
         planet_line_radius = geometry.planet_band_outer_radius
         planet_ring_radius = geometry.planet_ring_radius
 
@@ -201,7 +201,7 @@ class NatalChartWidget(QWidget):
             painter,
             center,
             zodiac_inner_radius,
-            aspect_radius,
+            geometry.aspect_radius,
             ascendant,
         )
         self._draw_house_numbers(
@@ -219,7 +219,7 @@ class NatalChartWidget(QWidget):
 
         aspect_points = self._compute_aspect_anchors(
             center,
-            aspect_radius,
+            geometry.aspect_radius,
             ascendant,
         )
         self._draw_aspects(painter, aspect_points)
@@ -234,8 +234,7 @@ class NatalChartWidget(QWidget):
         self._draw_transit_positions(
             painter,
             center,
-            zodiac_inner_radius - 10,
-            outer_radius - 6,
+            geometry,
             ascendant,
         )
         if self._debug_overlay_enabled:
@@ -355,13 +354,13 @@ class NatalChartWidget(QWidget):
         outer_wheel,
         ascendant: float,
     ) -> None:
-        sign_size = 24.0
+        sign_size = 22.0
         sign_pairs = zip(SIGN_ABBREVIATIONS, SIGN_ASSET_IDS, strict=True)
         for sign_index, (label, asset_id) in enumerate(sign_pairs):
             longitude = sign_index * 30.0 + 15.0
             point = point_on_circle(
                 center,
-                outer_wheel.zodiac_label_radius,
+                outer_wheel.zodiac_glyph_outer_radius,
                 longitude,
                 ascendant,
             )
@@ -373,6 +372,32 @@ class NatalChartWidget(QWidget):
             )
             renderer = self._get_svg_renderer(asset_id, SIGN_COLORS[label])
             renderer.render(painter, rect)
+
+    def _sign_label_rects(
+        self,
+        center: QPointF,
+        outer_wheel: OuterWheelGeometry,
+        ascendant: float,
+    ) -> list[QRectF]:
+        sign_size = 22.0
+        rects: list[QRectF] = []
+        for sign_index in range(12):
+            longitude = sign_index * 30.0 + 15.0
+            point = point_on_circle(
+                center,
+                outer_wheel.zodiac_glyph_outer_radius,
+                longitude,
+                ascendant,
+            )
+            rects.append(
+                QRectF(
+                    point.x() - (sign_size / 2),
+                    point.y() - (sign_size / 2),
+                    sign_size,
+                    sign_size,
+                )
+            )
+        return rects
 
     def _get_svg_renderer(self, asset_id: str, color: QColor) -> QSvgRenderer:
         cache_key = (asset_id, color.name())
@@ -495,6 +520,41 @@ class NatalChartWidget(QWidget):
                 label_height,
             )
             painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, label)
+
+    def _cardinal_label_rects(
+        self,
+        center: QPointF,
+        geometry: ChartGeometry,
+        ascendant: float,
+    ) -> list[QRectF]:
+        cardinal_points = {
+            'ASC': normalize_angle(ascendant),
+            'DSC': normalize_angle(ascendant + 180.0),
+            'MC': normalize_angle(self._chart.midheaven or ascendant + 90.0),
+            'IC': normalize_angle((self._chart.midheaven or ascendant + 90.0) + 180.0),
+        }
+        axis_font = QFont('Arial', 8)
+        axis_font.setBold(True)
+        metrics = QFontMetricsF(axis_font)
+        rects: list[QRectF] = []
+        for label, longitude in cardinal_points.items():
+            text_point = point_on_circle(
+                center,
+                geometry.cardinal_axis_label_radius,
+                longitude,
+                ascendant,
+            )
+            label_width = metrics.horizontalAdvance(label) + 6
+            label_height = metrics.height()
+            rects.append(
+                QRectF(
+                    text_point.x() - (label_width / 2),
+                    text_point.y() - (label_height / 2),
+                    label_width,
+                    label_height,
+                )
+            )
+        return rects
 
     def _draw_planets(
         self,
@@ -690,36 +750,87 @@ class NatalChartWidget(QWidget):
         self,
         painter: QPainter,
         center: QPointF,
-        marker_radius: float,
-        label_radius: float,
+        geometry: ChartGeometry,
         ascendant: float,
     ) -> None:
         if not self._transit_positions:
             return
-        painter.setBrush(QColor('#fff1e8'))
-        painter.setPen(QPen(QColor('#c86a2b'), 1.0))
         font = QFont('Arial', 8)
         painter.setFont(font)
-        for position in sorted(self._transit_positions, key=lambda item: item.longitude):
-            marker_point = point_on_circle(
-                center,
-                marker_radius,
-                position.longitude,
-                ascendant,
-            )
-            painter.drawEllipse(marker_point, 3.2, 3.2)
-            label_point = point_on_circle(
-                center,
-                label_radius,
-                position.longitude,
-                ascendant,
-            )
-            rect = QRectF(label_point.x() - 16, label_point.y() - 8, 32, 16)
-            painter.drawText(
-                rect,
-                Qt.AlignmentFlag.AlignCenter,
-                TRANSIT_ABBREVIATIONS.get(position.body, position.body[:2]),
-            )
+        metrics = QFontMetricsF(font)
+        content_rect = QRectF(self.rect()).adjusted(8, 8, -8, -8)
+        forbidden_rects = [
+            rect.adjusted(-4, -4, 4, 4)
+            for rect in self._sign_label_rects(center, geometry.outer_wheel, ascendant)
+            + self._cardinal_label_rects(center, geometry, ascendant)
+        ]
+        accepted_rects: list[QRectF] = []
+        painter.setPen(QPen(QColor('#c86a2b'), 1.0))
+        painter.setBrush(QColor('#fff1e8'))
+
+        sorted_positions = sorted(self._transit_positions, key=lambda item: item.longitude)
+        clusters = self._cluster_positions(sorted_positions, threshold_degrees=8.0)
+        for cluster in clusters:
+            for index, position in enumerate(cluster):
+                marker_point = point_on_circle(
+                    center,
+                    geometry.transit_marker_radius,
+                    position.longitude,
+                    ascendant,
+                )
+                label = TRANSIT_ABBREVIATIONS.get(position.body, position.body[:2])
+                base_radius = geometry.transit_label_radius + (
+                    index * geometry.transit_label_step
+                )
+                candidate_radii = (
+                    base_radius,
+                    base_radius - geometry.transit_label_step,
+                    base_radius - (geometry.transit_label_step * 2),
+                    base_radius + geometry.transit_label_step,
+                    base_radius + (geometry.transit_label_step * 2),
+                )
+                label_rect = None
+                for candidate_radius in candidate_radii:
+                    label_point = point_on_circle(
+                        center,
+                        candidate_radius,
+                        position.longitude,
+                        ascendant,
+                    )
+                    rect = QRectF(
+                        label_point.x() - ((metrics.horizontalAdvance(label) + 4) / 2),
+                        label_point.y() - (metrics.height() / 2),
+                        metrics.horizontalAdvance(label) + 4,
+                        metrics.height(),
+                    )
+                    padded = rect.adjusted(-3, -2, 3, 2)
+                    if not content_rect.contains(padded):
+                        continue
+                    if any(
+                        padded.intersects(other)
+                        for other in forbidden_rects + accepted_rects
+                    ):
+                        continue
+                    label_rect = rect
+                    accepted_rects.append(padded)
+                    break
+
+                if label_rect is None:
+                    label_point = point_on_circle(
+                        center,
+                        base_radius,
+                        position.longitude,
+                        ascendant,
+                    )
+                    label_rect = QRectF(
+                        label_point.x() - ((metrics.horizontalAdvance(label) + 4) / 2),
+                        label_point.y() - (metrics.height() / 2),
+                        metrics.horizontalAdvance(label) + 4,
+                        metrics.height(),
+                    )
+
+                painter.drawEllipse(marker_point, 2.8, 2.8)
+                painter.drawText(label_rect, Qt.AlignmentFlag.AlignCenter, label)
 
     def _draw_debug_overlay(
         self,
@@ -840,13 +951,19 @@ class NatalChartWidget(QWidget):
         return offset < span
 
     @staticmethod
-    def _cluster_positions(positions: list[PlanetPosition]) -> list[list[PlanetPosition]]:
+    def _cluster_positions(
+        positions: list[PlanetPosition],
+        threshold_degrees: float = 7.5,
+    ) -> list[list[PlanetPosition]]:
         if not positions:
             return []
         clusters: list[list[PlanetPosition]] = [[positions[0]]]
         for position in positions[1:]:
             previous = clusters[-1][-1]
-            if shortest_angular_distance(previous.longitude, position.longitude) < 7.5:
+            if (
+                shortest_angular_distance(previous.longitude, position.longitude)
+                < threshold_degrees
+            ):
                 clusters[-1].append(position)
             else:
                 clusters.append([position])

@@ -40,6 +40,7 @@ def test_tick_band_never_enters_zodiac_label_band() -> None:
     assert outer.zodiac_label_band_outer_radius > outer.zodiac_label_radius
     assert outer.zodiac_label_radius > outer.zodiac_label_band_inner_radius
     assert outer.zodiac_label_band_inner_radius > outer.inner_border_radius
+    assert outer.zodiac_glyph_outer_radius > outer.outer_border_radius
 
 
 def test_planet_band_stays_between_zodiac_and_house_rings() -> None:

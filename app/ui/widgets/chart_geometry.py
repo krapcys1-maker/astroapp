@@ -19,6 +19,7 @@ class OuterWheelGeometry:
     zodiac_label_band_inner_radius: float
     zodiac_label_radius: float
     zodiac_label_clearance: float
+    zodiac_glyph_outer_radius: float
     inner_border_radius: float
 
     @property
@@ -42,6 +43,9 @@ class ChartGeometry:
     planet_ring_radius: float
     planet_band_outer_radius: float
     planet_band_inner_radius: float
+    transit_marker_radius: float
+    transit_label_radius: float
+    transit_label_step: float
     center_clear_radius: float
 
     @classmethod
@@ -56,6 +60,7 @@ class ChartGeometry:
             zodiac_label_band_inner_radius=outer_radius - 35,
             zodiac_label_radius=outer_radius - 29,
             zodiac_label_clearance=5,
+            zodiac_glyph_outer_radius=outer_radius + 18,
             inner_border_radius=outer_radius - 38,
         )
         house_outer_radius = outer_radius - 106
@@ -65,6 +70,9 @@ class ChartGeometry:
         planet_line_radius = planet_band_outer_radius
         planet_ring_radius = planet_band_outer_radius - 8
         planet_band_inner_radius = house_outer_radius + 16
+        transit_marker_radius = outer_wheel.outer_border_radius + 4
+        transit_label_radius = outer_wheel.zodiac_glyph_outer_radius + 12
+        transit_label_step = 14.0
         return cls(
             outer_wheel=outer_wheel,
             house_outer_radius=house_outer_radius,
@@ -81,6 +89,9 @@ class ChartGeometry:
             planet_ring_radius=planet_ring_radius,
             planet_band_outer_radius=planet_band_outer_radius,
             planet_band_inner_radius=planet_band_inner_radius,
+            transit_marker_radius=transit_marker_radius,
+            transit_label_radius=transit_label_radius,
+            transit_label_step=transit_label_step,
             center_clear_radius=house_inner_radius,
         )
 
