@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QByteArray, QPointF, QRectF, Qt
 from PySide6.QtGui import (
@@ -14,12 +16,10 @@ from PySide6.QtGui import (
     QPaintEvent,
     QPen,
 )
-from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QWidget
 
 from app.models.chart import Chart
 from app.models.planet_position import PlanetPosition
-from app.ui.widgets.astrology_symbol_loader import build_symbol_svg
 from app.ui.widgets.chart_geometry import (
     ChartGeometry,
     OuterWheelGeometry,
@@ -27,9 +27,26 @@ from app.ui.widgets.chart_geometry import (
 )
 from app.utils.angle_utils import normalize_angle, shortest_angular_distance
 
+if TYPE_CHECKING:
+    from PySide6.QtSvg import QSvgRenderer
+
 SIGN_ABBREVIATIONS = (
     'Ar', 'Ta', 'Ge', 'Cn', 'Le', 'Vi', 'Li', 'Sc', 'Sg', 'Cp', 'Aq', 'Pi'
 )
+SIGN_GLYPHS = {
+    'Ar': '\u2648',
+    'Ta': '\u2649',
+    'Ge': '\u264A',
+    'Cn': '\u264B',
+    'Le': '\u264C',
+    'Vi': '\u264D',
+    'Li': '\u264E',
+    'Sc': '\u264F',
+    'Sg': '\u2650',
+    'Cp': '\u2651',
+    'Aq': '\u2652',
+    'Pi': '\u2653',
+}
 SIGN_ASSET_IDS = (
     'Ari', 'Tau', 'Gem', 'Can', 'Leo', 'Vir', 'Lib', 'Sco', 'Sag', 'Cap', 'Aqu', 'Pis'
 )
@@ -123,7 +140,8 @@ class NatalChartWidget(QWidget):
         self._chart: Chart | None = None
         self._transit_positions = []
         self._debug_overlay_enabled = False
-        self._svg_cache: dict[tuple[str, str], QSvgRenderer] = {}
+        self._svg_cache: dict[tuple[str, str], object] = {}
+        self._use_svg_symbols = not self._prefer_text_symbol_fallback()
         self.setObjectName('natalChartWheel')
         self.setMinimumHeight(560)
 
@@ -371,7 +389,13 @@ class NatalChartWidget(QWidget):
                 sign_size,
             )
             renderer = self._get_svg_renderer(asset_id, SIGN_COLORS[label])
-            renderer.render(painter, rect)
+            if renderer is not None:
+                renderer.render(painter, rect)
+                continue
+            painter.setPen(QPen(SIGN_COLORS[label], 1.0))
+            fallback_font = QFont('Segoe UI Symbol', 16)
+            painter.setFont(fallback_font)
+            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, SIGN_GLYPHS[label])
 
     def _sign_label_rects(
         self,
@@ -399,11 +423,24 @@ class NatalChartWidget(QWidget):
             )
         return rects
 
-    def _get_svg_renderer(self, asset_id: str, color: QColor) -> QSvgRenderer:
+    @staticmethod
+    def _prefer_text_symbol_fallback() -> bool:
+        return (
+            os.environ.get('QT_QPA_PLATFORM') == 'offscreen'
+            or os.environ.get('CI', '').lower() == 'true'
+        )
+
+    def _get_svg_renderer(self, asset_id: str, color: QColor) -> QSvgRenderer | None:
+        if not self._use_svg_symbols:
+            return None
         cache_key = (asset_id, color.name())
         renderer = self._svg_cache.get(cache_key)
         if renderer is not None:
             return renderer
+
+        from PySide6.QtSvg import QSvgRenderer
+
+        from app.ui.widgets.astrology_symbol_loader import build_symbol_svg
 
         svg = build_symbol_svg(asset_id, color.name())
         renderer = QSvgRenderer(QByteArray(svg.encode('utf-8')), self)
@@ -670,15 +707,16 @@ class NatalChartWidget(QWidget):
         asset_id = PLANET_ASSET_IDS.get(position.body)
         if asset_id is not None:
             renderer = self._get_svg_renderer(asset_id, QColor('#111111'))
-            glyph_size = 20.0
-            glyph_rect = QRectF(
-                layout.glyph_center.x() - (glyph_size / 2),
-                layout.glyph_center.y() - (glyph_size / 2),
-                glyph_size,
-                glyph_size,
-            )
-            renderer.render(painter, glyph_rect)
-            return
+            if renderer is not None:
+                glyph_size = 20.0
+                glyph_rect = QRectF(
+                    layout.glyph_center.x() - (glyph_size / 2),
+                    layout.glyph_center.y() - (glyph_size / 2),
+                    glyph_size,
+                    glyph_size,
+                )
+                renderer.render(painter, glyph_rect)
+                return
 
         glyph = PLANET_LABELS.get(position.body, position.body[:2])
         glyph_rect = glyph_metrics.tightBoundingRect(glyph)

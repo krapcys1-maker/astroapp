@@ -1,8 +1,8 @@
-"""UI package."""
+"""UI package.
 
-from app.ui.clients_view import ClientsView
-from app.ui.main_window import MainWindow
-from app.ui.natal_view import NatalView
-from app.ui.transit_search_view import TransitSearchView
+Keep this package-level module import-light so geometry/unit tests can import
+submodules like ``app.ui.widgets.chart_geometry`` without pulling in the full
+Qt view stack.
+"""
 
-__all__ = ["ClientsView", "MainWindow", "NatalView", "TransitSearchView"]
+__all__ = []
