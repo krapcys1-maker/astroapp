@@ -190,6 +190,16 @@ def test_main_window_client_and_natal_workflow(tmp_path) -> None:
     application.processEvents()
 
     transit_view = window._transit_view
+    transit_items = [
+        transit_view._transit_bodies_list.item(index).text()
+        for index in range(transit_view._transit_bodies_list.count())
+    ]
+    natal_items = [
+        transit_view._natal_bodies_list.item(index).text()
+        for index in range(transit_view._natal_bodies_list.count())
+    ]
+    assert transit_items[-4:] == ["ASC", "DSC", "IC", "MC"]
+    assert natal_items[-4:] == ["ASC", "DSC", "IC", "MC"]
     transit_view._transit_bodies_list.clearSelection()
     transit_view._natal_bodies_list.clearSelection()
     transit_view._aspects_list.clearSelection()

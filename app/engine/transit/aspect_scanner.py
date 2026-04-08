@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -35,6 +36,7 @@ class AspectScanner:
         *,
         window_start: datetime,
         window_end: datetime,
+        longitude_resolver: Callable[[datetime, str], float] | None = None,
     ) -> list[AspectEvent]:
         natal_points = self._select_natal_points(query, natal_chart)
         transit_bodies = query.selected_transit_bodies or tuple(
@@ -55,6 +57,7 @@ class AspectScanner:
                             samples=samples,
                             window_start=window_start,
                             window_end=window_end,
+                            longitude_resolver=longitude_resolver,
                         )
                     )
         return events
@@ -69,11 +72,14 @@ class AspectScanner:
         samples: list[TransitSample],
         window_start: datetime,
         window_end: datetime,
+        longitude_resolver: Callable[[datetime, str], float] | None,
     ) -> list[AspectEvent]:
         if not samples:
             return []
 
         def longitude_at(dt: datetime) -> float:
+            if longitude_resolver is not None:
+                return longitude_resolver(dt, transit_body)
             return self._backend.get_planet_longitude(dt, transit_body).longitude
 
         def state_at(dt: datetime) -> bool:
@@ -179,4 +185,18 @@ class AspectScanner:
             for position in natal_chart.planet_positions
             if not allowed or position.body in allowed
         ]
+        ascendant = natal_chart.ascendant
+        midheaven = natal_chart.midheaven
+        if ascendant is not None and midheaven is not None:
+            extra_points = [
+                NatalPoint(body="ASC", longitude=ascendant),
+                NatalPoint(body="DSC", longitude=(ascendant + 180.0) % 360.0),
+                NatalPoint(body="MC", longitude=midheaven),
+                NatalPoint(body="IC", longitude=(midheaven + 180.0) % 360.0),
+            ]
+            points.extend(
+                point
+                for point in extra_points
+                if not allowed or point.body in allowed
+            )
         return points

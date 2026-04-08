@@ -29,7 +29,7 @@ from app.models.transit_query import TransitQuery
 from app.services.person_service import PersonService
 from app.services.transit_service import TransitService
 
-BODY_OPTIONS = (
+PLANET_BODY_OPTIONS = (
     "Sun",
     "Moon",
     "Mercury",
@@ -41,6 +41,8 @@ BODY_OPTIONS = (
     "Neptune",
     "Pluto",
 )
+ANGLE_BODY_OPTIONS = ("ASC", "DSC", "IC", "MC")
+BODY_OPTIONS = PLANET_BODY_OPTIONS + ANGLE_BODY_OPTIONS
 ASPECT_OPTIONS = ("conjunction", "sextile", "square", "trine", "opposition")
 
 
@@ -230,8 +232,8 @@ class TransitSearchView(QWidget):
 
         centered_layout.addWidget(page, 1)
         centered_layout.addStretch(1)
-        self._select_all(self._transit_bodies_list)
-        self._select_all(self._natal_bodies_list)
+        self._select_default_bodies(self._transit_bodies_list)
+        self._select_default_bodies(self._natal_bodies_list)
         self._select_all(self._aspects_list)
         service_available = self._transit_service is not None
         self._search_button.setEnabled(service_available)
@@ -264,6 +266,13 @@ class TransitSearchView(QWidget):
     def _select_all(widget: QListWidget) -> None:
         for index in range(widget.count()):
             widget.item(index).setSelected(True)
+
+    @staticmethod
+    def _select_default_bodies(widget: QListWidget) -> None:
+        allowed = set(PLANET_BODY_OPTIONS)
+        for index in range(widget.count()):
+            item = widget.item(index)
+            item.setSelected(item.text() in allowed)
 
     def _refresh_recent_queries(self, *_args) -> None:
         self._recent_queries_selector.blockSignals(True)
@@ -375,8 +384,8 @@ class TransitSearchView(QWidget):
         self._end_date_input.setDate(QDate.currentDate().addDays(30))
         self._orb_input.setValue(3.0)
         self._filter_input.clear()
-        self._select_all(self._transit_bodies_list)
-        self._select_all(self._natal_bodies_list)
+        self._select_default_bodies(self._transit_bodies_list)
+        self._select_default_bodies(self._natal_bodies_list)
         self._select_all(self._aspects_list)
         self._recent_queries_selector.setCurrentIndex(0)
         self._set_status("Transit filters reset.")

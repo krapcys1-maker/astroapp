@@ -6,13 +6,14 @@ from pathlib import Path
 import pytest
 
 from app.engine.ephemeris import ChartAngles, HouseCusps, PlanetLongitude
+from app.models.birth_data import BirthData
 from app.models.chart import Chart
 from app.models.person import Person
 from app.models.planet_position import PlanetPosition
 from app.models.transit_query import TransitQuery
 from app.services.transit_service import TransitService
 from app.storage.db import initialize_database
-from app.storage.repositories import ChartRepository, PersonRepository
+from app.storage.repositories import BirthDataRepository, ChartRepository, PersonRepository
 
 
 class LinearTransitBackend:
@@ -64,6 +65,8 @@ def build_natal_chart(person_id: int, natal_longitude: float) -> Chart:
         house_system="Placidus",
         zodiac_type="tropical",
         calculated_at=datetime(2026, 1, 1, tzinfo=UTC),
+        ascendant=0.0,
+        midheaven=90.0,
         planet_positions=[
             PlanetPosition("Sun", natal_longitude, "Aries", natal_longitude % 30, False, 1)
         ],
@@ -216,3 +219,65 @@ def test_transit_service_saves_recent_query_when_repository_is_available(tmp_pat
 
     assert len(recent) == 1
     assert recent[0].selected_transit_bodies == ("Mars",)
+
+
+def test_transit_service_supports_natal_angles_in_filters() -> None:
+    backend = LinearTransitBackend({"Mars": (13.0, 3.0)})
+    service = TransitService(backend)
+    chart = build_natal_chart(person_id=1, natal_longitude=20.0)
+    chart.ascendant = 20.0
+    chart.midheaven = 110.0
+    query = TransitQuery(
+        person_id=1,
+        start_date=date(2026, 1, 2),
+        end_date=date(2026, 1, 4),
+        orb=3.0,
+        selected_transit_bodies=("Mars",),
+        selected_natal_bodies=("ASC",),
+        selected_aspects=("conjunction",),
+    )
+
+    events = service.search(query, natal_chart=chart)
+
+    assert len(events) == 1
+    assert events[0].natal_body == "ASC"
+
+
+def test_transit_service_supports_transit_angles_in_filters(tmp_path: Path) -> None:
+    database_path = tmp_path / "transit-angles.sqlite3"
+    initialize_database(database_path)
+    people = PersonRepository(database_path)
+    birth_data_repo = BirthDataRepository(database_path)
+    charts = ChartRepository(database_path)
+    person = people.create(Person(name="Angle Transit Client"))
+    assert person.id is not None
+    birth_data_repo.create(
+        BirthData(
+            person_id=person.id,
+            birth_date=date(1985, 9, 1),
+            birth_time=datetime(1985, 9, 1, 5, 45).time(),
+            city="Olesnica",
+            country="Poland",
+            latitude=51.2167,
+            longitude=17.3833,
+            timezone_name="Europe/Warsaw",
+        )
+    )
+    charts.save(build_natal_chart(person.id, natal_longitude=0.0))
+
+    backend = LinearTransitBackend({"Mars": (13.0, 3.0)})
+    service = TransitService(backend, database_path=database_path)
+    query = TransitQuery(
+        person_id=person.id,
+        start_date=date(2026, 1, 1),
+        end_date=date(2026, 1, 1),
+        orb=3.0,
+        selected_transit_bodies=("ASC",),
+        selected_natal_bodies=("Sun",),
+        selected_aspects=("conjunction",),
+    )
+
+    events = service.search(query)
+
+    assert len(events) == 1
+    assert events[0].transit_body == "ASC"

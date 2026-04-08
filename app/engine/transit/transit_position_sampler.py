@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -26,15 +27,20 @@ class TransitPositionSampler:
         start_dt: datetime,
         end_dt: datetime,
         bodies: tuple[str, ...],
+        *,
+        longitude_resolver: Callable[[datetime, str], float] | None = None,
     ) -> list[TransitSample]:
         samples: list[TransitSample] = []
         cursor = start_dt
+        resolver = longitude_resolver or (
+            lambda timestamp, body: self._backend.get_planet_longitude(timestamp, body).longitude
+        )
         while cursor <= end_dt:
             samples.append(
                 TransitSample(
                     timestamp=cursor,
                     positions={
-                        body: self._backend.get_planet_longitude(cursor, body).longitude
+                        body: resolver(cursor, body)
                         for body in bodies
                     },
                 )

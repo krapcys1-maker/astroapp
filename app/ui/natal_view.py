@@ -33,6 +33,21 @@ from app.services.transit_service import TransitService
 from app.ui.widgets import NatalChartWidget
 from app.utils.time_utils import local_datetime_to_utc
 
+SIGN_NAMES = [
+    "Aries",
+    "Taurus",
+    "Gemini",
+    "Cancer",
+    "Leo",
+    "Virgo",
+    "Libra",
+    "Scorpio",
+    "Sagittarius",
+    "Capricorn",
+    "Aquarius",
+    "Pisces",
+]
+
 
 class NatalView(QWidget):
     def __init__(
@@ -205,11 +220,11 @@ class NatalView(QWidget):
 
         self._planets_table = self._create_table(
             "planetsTable",
-            ["Body", "Longitude", "Sign", "Degree", "Retrograde", "House"],
+            ["Body", "Sign", "Degree", "Retrograde", "House"],
         )
         self._houses_table = self._create_table(
             "housesTable",
-            ["House", "Longitude"],
+            ["House", "Sign"],
         )
         self._aspects_table = self._create_table(
             "aspectsTable",
@@ -271,6 +286,10 @@ class NatalView(QWidget):
         table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
         table.setMinimumHeight(170)
         return table
+
+    @staticmethod
+    def _sign_from_longitude(longitude: float) -> str:
+        return SIGN_NAMES[int(longitude // 30) % 12]
 
     def _load_saved_chart(self, *_args) -> None:
         person_id = self.current_person_id()
@@ -388,7 +407,6 @@ class NatalView(QWidget):
         for row_index, position in enumerate(chart.planet_positions):
             values = [
                 position.body,
-                f"{position.longitude:.2f}",
                 position.sign,
                 f"{position.degree_in_sign:.2f}",
                 "yes" if position.retrograde else "no",
@@ -399,11 +417,12 @@ class NatalView(QWidget):
 
         self._houses_table.setRowCount(len(chart.house_cusps))
         for row_index, house_cusp in enumerate(chart.house_cusps):
+            sign_name = self._sign_from_longitude(house_cusp.longitude)
             self._houses_table.setItem(row_index, 0, QTableWidgetItem(str(house_cusp.house_number)))
             self._houses_table.setItem(
                 row_index,
                 1,
-                QTableWidgetItem(f"{house_cusp.longitude:.2f}"),
+                QTableWidgetItem(sign_name),
             )
 
         self._aspects_table.setRowCount(len(chart.aspects))
