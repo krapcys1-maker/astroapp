@@ -4,6 +4,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QDate, QTime
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDateEdit,
     QDoubleSpinBox,
@@ -147,6 +148,10 @@ class NatalView(QWidget):
         actions.addWidget(self._export_button)
         controls_layout.addLayout(actions)
 
+        self._debug_overlay_checkbox = QCheckBox("Debug wheel geometry")
+        self._debug_overlay_checkbox.toggled.connect(self._chart_debug_toggled)
+        controls_layout.addWidget(self._debug_overlay_checkbox)
+
         transit_group = QGroupBox("Transit overlay")
         transit_layout = QFormLayout(transit_group)
         transit_layout.setContentsMargins(16, 18, 16, 16)
@@ -251,6 +256,9 @@ class NatalView(QWidget):
         self._clear_transits_button.setEnabled(False)
         if not service_available and self._natal_error:
             self._set_status(self._natal_error)
+
+    def _chart_debug_toggled(self, checked: bool) -> None:
+        self._chart_widget.set_debug_overlay_enabled(checked)
 
     @staticmethod
     def _create_table(object_name: str, headers: list[str]) -> QTableWidget:

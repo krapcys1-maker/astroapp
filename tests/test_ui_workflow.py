@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import math
 from datetime import UTC, datetime
 
 import pytest
+from PySide6.QtCore import QPointF
 
 from app.config.settings import AppSettings
 from app.models.aspect import Aspect
@@ -252,3 +254,203 @@ def test_natal_chart_widget_exports_png(tmp_path) -> None:
     assert widget.export_png(export_path) is True
     assert export_path.exists()
     assert export_path.stat().st_size > 0
+
+
+def test_natal_chart_widget_stacks_close_planets_radially() -> None:
+    from app.main import create_application
+    from app.ui.widgets import NatalChartWidget
+    from app.ui.widgets.chart_geometry import ChartGeometry
+
+    application = create_application()
+    widget = NatalChartWidget()
+    widget.resize(640, 640)
+    chart = Chart(
+        id=1,
+        person_id=1,
+        chart_type="natal",
+        house_system="Placidus",
+        zodiac_type="tropical",
+        calculated_at=datetime(2026, 4, 7, 10, 0, tzinfo=UTC),
+        ascendant=11.5,
+        midheaven=222.0,
+        planet_positions=[
+            PlanetPosition("Sun", 10.0, "Aries", 10.0, False, 1),
+            PlanetPosition("Moon", 12.0, "Aries", 12.0, False, 1),
+            PlanetPosition("Mercury", 14.0, "Aries", 14.0, False, 1),
+        ],
+        house_cusps=[
+            HouseCusp(1, 0.0),
+            HouseCusp(2, 30.0),
+            HouseCusp(3, 60.0),
+            HouseCusp(4, 90.0),
+            HouseCusp(5, 120.0),
+            HouseCusp(6, 150.0),
+            HouseCusp(7, 180.0),
+            HouseCusp(8, 210.0),
+            HouseCusp(9, 240.0),
+            HouseCusp(10, 270.0),
+            HouseCusp(11, 300.0),
+            HouseCusp(12, 330.0),
+        ],
+        aspects=[],
+    )
+    widget.set_chart(chart)
+    widget.show()
+    application.processEvents()
+
+    geometry = ChartGeometry.from_outer_radius((min(widget.width(), widget.height()) - 60) / 2)
+    center_x = widget.width() / 2
+    center_y = widget.height() / 2
+    layouts = widget._compute_planet_layouts(  # noqa: SLF001
+        QPointF(center_x, center_y),
+        geometry.planet_ring_radius,
+        geometry.planet_band_outer_radius,
+        geometry.planet_band_inner_radius,
+        chart.ascendant or 0.0,
+    )
+
+    assert len(layouts) == 3
+
+    angles = []
+    radii = []
+    anchor_radii = []
+    for layout in layouts:
+        dx = layout.glyph_center.x() - center_x
+        dy = layout.glyph_center.y() - center_y
+        angles.append(math.atan2(-dy, dx))
+        radii.append((dx**2 + dy**2) ** 0.5)
+        anchor_dx = layout.base_anchor.x() - center_x
+        anchor_dy = layout.base_anchor.y() - center_y
+        anchor_radii.append((anchor_dx**2 + anchor_dy**2) ** 0.5)
+
+    assert max(angles) - min(angles) < 0.03
+    assert radii == sorted(radii, reverse=True)
+    available_span = geometry.planet_ring_radius - (geometry.planet_band_inner_radius + 4.0)
+    expected_step = min(18.0, available_span / 2)
+    assert radii[0] == pytest.approx(geometry.planet_ring_radius)
+    assert radii[1] == pytest.approx(geometry.planet_ring_radius - expected_step)
+    assert radii[2] == pytest.approx(geometry.planet_ring_radius - (expected_step * 2))
+    assert all(
+        radius == pytest.approx(geometry.planet_band_outer_radius)
+        for radius in anchor_radii
+    )
+
+
+def test_natal_chart_widget_single_planet_stays_on_base_ring() -> None:
+    from app.main import create_application
+    from app.ui.widgets import NatalChartWidget
+    from app.ui.widgets.chart_geometry import ChartGeometry
+
+    application = create_application()
+    widget = NatalChartWidget()
+    widget.resize(640, 640)
+    chart = Chart(
+        id=1,
+        person_id=1,
+        chart_type="natal",
+        house_system="Placidus",
+        zodiac_type="tropical",
+        calculated_at=datetime(2026, 4, 7, 10, 0, tzinfo=UTC),
+        ascendant=11.5,
+        midheaven=222.0,
+        planet_positions=[
+            PlanetPosition("Sun", 10.0, "Aries", 10.0, False, 1),
+        ],
+        house_cusps=[
+            HouseCusp(1, 0.0),
+            HouseCusp(2, 30.0),
+            HouseCusp(3, 60.0),
+            HouseCusp(4, 90.0),
+            HouseCusp(5, 120.0),
+            HouseCusp(6, 150.0),
+            HouseCusp(7, 180.0),
+            HouseCusp(8, 210.0),
+            HouseCusp(9, 240.0),
+            HouseCusp(10, 270.0),
+            HouseCusp(11, 300.0),
+            HouseCusp(12, 330.0),
+        ],
+        aspects=[],
+    )
+    widget.set_chart(chart)
+    widget.show()
+    application.processEvents()
+
+    geometry = ChartGeometry.from_outer_radius((min(widget.width(), widget.height()) - 60) / 2)
+    center_x = widget.width() / 2
+    center_y = widget.height() / 2
+    layouts = widget._compute_planet_layouts(  # noqa: SLF001
+        QPointF(center_x, center_y),
+        geometry.planet_ring_radius,
+        geometry.planet_band_outer_radius,
+        geometry.planet_band_inner_radius,
+        chart.ascendant or 0.0,
+    )
+
+    assert len(layouts) == 1
+    dx = layouts[0].glyph_center.x() - center_x
+    dy = layouts[0].glyph_center.y() - center_y
+    radius = (dx**2 + dy**2) ** 0.5
+    assert radius == pytest.approx(geometry.planet_ring_radius)
+
+
+def test_natal_chart_widget_uses_single_aspect_anchor_radius() -> None:
+    from app.main import create_application
+    from app.ui.widgets import NatalChartWidget
+    from app.ui.widgets.chart_geometry import ChartGeometry
+
+    application = create_application()
+    widget = NatalChartWidget()
+    widget.resize(640, 640)
+    chart = Chart(
+        id=1,
+        person_id=1,
+        chart_type="natal",
+        house_system="Placidus",
+        zodiac_type="tropical",
+        calculated_at=datetime(2026, 4, 7, 10, 0, tzinfo=UTC),
+        ascendant=11.5,
+        midheaven=222.0,
+        planet_positions=[
+            PlanetPosition("Sun", 10.0, "Aries", 10.0, False, 1),
+            PlanetPosition("Moon", 190.0, "Libra", 10.0, False, 7),
+            PlanetPosition("Mercury", 100.0, "Cancer", 10.0, False, 4),
+        ],
+        house_cusps=[
+            HouseCusp(1, 0.0),
+            HouseCusp(2, 30.0),
+            HouseCusp(3, 60.0),
+            HouseCusp(4, 90.0),
+            HouseCusp(5, 120.0),
+            HouseCusp(6, 150.0),
+            HouseCusp(7, 180.0),
+            HouseCusp(8, 210.0),
+            HouseCusp(9, 240.0),
+            HouseCusp(10, 270.0),
+            HouseCusp(11, 300.0),
+            HouseCusp(12, 330.0),
+        ],
+        aspects=[],
+    )
+    widget.set_chart(chart)
+    widget.show()
+    application.processEvents()
+
+    outer_radius = (min(widget.width(), widget.height()) - 60) / 2
+    geometry = ChartGeometry.from_outer_radius(outer_radius)
+    center = QPointF(widget.width() / 2, widget.height() / 2)
+    anchors = widget._compute_aspect_anchors(  # noqa: SLF001
+        center,
+        geometry.aspect_radius,
+        chart.ascendant or 0.0,
+    )
+
+    assert anchors.keys() == {"Sun", "Moon", "Mercury"}
+
+    radii = []
+    for point in anchors.values():
+        dx = point.x() - center.x()
+        dy = point.y() - center.y()
+        radii.append((dx**2 + dy**2) ** 0.5)
+
+    assert all(radius == pytest.approx(geometry.aspect_radius) for radius in radii)
