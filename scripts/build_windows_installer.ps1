@@ -24,14 +24,14 @@ $pyinstallerWork = Join-Path $buildRoot "pyinstaller"
 $packageRoot = Join-Path $buildRoot "package"
 $payloadRoot = Join-Path $buildRoot "payload"
 $distRoot = Join-Path $repoRoot "dist"
-$payloadZip = Join-Path $packageRoot "AstroLabb-payload.zip"
+$payloadTar = Join-Path $packageRoot "AstroLabb-payload.tar"
 $setupExe = Join-Path $distRoot ("AstroLabb-Setup-{0}.exe" -f $version)
 $sedPath = Join-Path $buildRoot "AstroLabb-Setup.sed"
 
 Remove-Item -LiteralPath $pyinstallerWork -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $packageRoot -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $payloadRoot -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item -LiteralPath $payloadZip -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath $payloadTar -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath $setupExe -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $pyinstallerWork | Out-Null
 New-Item -ItemType Directory -Force -Path $packageRoot | Out-Null
@@ -64,7 +64,11 @@ if (-not (Test-Path $appDir)) {
     throw "PyInstaller build output not found: $appDir"
 }
 
-Compress-Archive -Path (Join-Path $appDir "*") -DestinationPath $payloadZip -Force
+& tar -cf $payloadTar -C $appDir .
+if (-not (Test-Path $payloadTar)) {
+    throw "Installer payload archive was not created: $payloadTar"
+}
+
 Copy-Item (Join-Path $repoRoot "scripts\installer\install.cmd") (Join-Path $packageRoot "install.cmd") -Force
 Copy-Item (Join-Path $repoRoot "scripts\installer\install.ps1") (Join-Path $packageRoot "install.ps1") -Force
 Copy-Item (Join-Path $repoRoot "scripts\installer\uninstall.cmd") (Join-Path $packageRoot "uninstall.cmd") -Force
@@ -102,7 +106,7 @@ AppLaunched=cmd.exe /d /s /c install.cmd
 PostInstallCmd=<None>
 AdminQuietInstCmd=
 UserQuietInstCmd=cmd.exe /d /s /c install.cmd /quiet
-FILE0=AstroLabb-payload.zip
+FILE0=AstroLabb-payload.tar
 FILE1=install.cmd
 FILE2=install.ps1
 FILE3=uninstall.cmd
@@ -118,7 +122,7 @@ SourceFiles0=$packageRoot\
 Set-Content -Path $sedPath -Value $sedContent -Encoding ASCII
 & "$env:SystemRoot\System32\iexpress.exe" /N $sedPath
 
-for ($attempt = 0; $attempt -lt 20 -and -not (Test-Path $setupExe); $attempt++) {
+for ($attempt = 0; $attempt -lt 120 -and -not (Test-Path $setupExe); $attempt++) {
     Start-Sleep -Milliseconds 500
 }
 

@@ -5,16 +5,19 @@ param(
 $ErrorActionPreference = "Stop"
 
 $packageRoot = $PSScriptRoot
-$payloadZip = Join-Path $packageRoot "AstroLabb-payload.zip"
+$payloadTar = Join-Path $packageRoot "AstroLabb-payload.tar"
 $installDir = Join-Path $env:LOCALAPPDATA "Programs\AstroLabb"
 $startMenuDir = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\AstroLabb"
 $desktopShortcutPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "AstroLabb.lnk"
 $exePath = Join-Path $installDir "AstroLabb.exe"
 $uninstallCmdPath = Join-Path $installDir "Uninstall-AstroLabb.cmd"
 
-if (-not (Test-Path $payloadZip)) {
-    throw "Installer payload not found: $payloadZip"
+if (-not (Test-Path $payloadTar)) {
+    throw "Installer payload not found: $payloadTar"
 }
+
+Get-Process AstroLabb -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 500
 
 if (Test-Path $installDir) {
     Remove-Item -LiteralPath $installDir -Recurse -Force
@@ -22,7 +25,10 @@ if (Test-Path $installDir) {
 
 New-Item -ItemType Directory -Force -Path $installDir | Out-Null
 New-Item -ItemType Directory -Force -Path $startMenuDir | Out-Null
-Expand-Archive -Path $payloadZip -DestinationPath $installDir -Force
+& tar -xf $payloadTar -C $installDir
+if ($LASTEXITCODE -ne 0) {
+    throw "Payload extraction failed with exit code $LASTEXITCODE."
+}
 Copy-Item (Join-Path $packageRoot "uninstall.cmd") $uninstallCmdPath -Force
 
 $wsh = New-Object -ComObject WScript.Shell
