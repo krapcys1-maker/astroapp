@@ -36,6 +36,11 @@ astroapp = "app.main:main"
 [tool.setuptools.packages.find]
 include = ["app*"]
 
+[tool.setuptools.package-data]
+app = [
+  "resources/**/*",
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"

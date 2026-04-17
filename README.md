@@ -1,66 +1,54 @@
-# astroapp
+# AstroLabb
 
-`astroapp` is an open-source desktop astrology application built with Python and PySide6.
+AstroLabb is an open-source desktop astrology app built with Python and PySide6 for local natal chart work, client profile management, and transit-to-natal searches.
 
-The long-term goal is a practical desktop workflow for natal charts and transit aspect date-range searches. This bootstrap keeps the foundation small, typed, and modular so we can add astrology logic without coupling it to the UI.
+## What You Can Do
 
-## Current bootstrap
+- Save local client profiles with birth date, time, coordinates, timezone, and notes
+- Search cities and auto-fill coordinates plus timezone from the built-in lookup flow
+- Calculate natal charts with planets, houses, aspects, and a rendered chart wheel
+- Overlay current or selected transits on top of the natal wheel
+- Search transit windows across a date range with body and aspect filters
+- Export natal charts to PNG
 
-- Python 3.12 project configuration via `pyproject.toml`
-- PySide6 desktop entry point with a minimal main window
-- SQLite bootstrap layer with schema version tracking
-- `pytest` and `ruff` configuration
-- GitHub Actions workflow for lint and tests
-- AGPL-3.0-or-later licensing
+## Windows Installer
 
-## Architecture
+The project now includes a Windows installer build pipeline that packages:
 
-The app is organized into focused layers:
+- the desktop app executable
+- bundled SVG symbol assets used by the chart renderer
+- bundled Swiss Ephemeris data shipped with the app resources
+- Start Menu and desktop shortcuts created during installation
 
-- `app/config`: application settings and filesystem paths
-- `app/models`: typed domain models
-- `app/engine`: astrology calculation backends and calculators
-- `app/services`: orchestration layer used by the UI
-- `app/storage`: SQLite access and schema bootstrap
-- `app/ui`: windows, views, and reusable widgets
-- `app/utils`: shared utilities
+Installed app data is stored in the current user's local application data directory instead of the install folder, so the app keeps working correctly after installation and updates.
 
-Business logic should stay out of the UI. The UI should call services, and services should depend on storage and engine modules.
+## Download And Test
 
-## Roadmap
+When a Windows release is published, download the latest installer from the GitHub Releases page and launch `AstroLabb-Setup-<version>.exe`.
 
-1. Bootstrap project, tests, CI, and minimal app shell
-2. Add typed models plus SQLite repositories
-3. Integrate Swiss Ephemeris through a backend abstraction
-4. Implement natal chart calculation
-5. Build the first end-to-end GUI workflow for clients and natal charts
-6. Add transit-to-natal aspect date-range search
+Please download it, test the workflows, and report anything broken or unclear. Bug reports with reproduction steps, screenshots, and sample inputs are especially helpful.
 
-## Local development
+## Reporting Bugs
 
-Create a virtual environment and install the project with dev dependencies:
+- Open a GitHub issue in this repository
+- Include the app version and Windows version
+- Describe what you expected to happen
+- Describe what actually happened
+- Add screenshots or exported files if they help
+
+A ready-to-use issue template is included in `.github/ISSUE_TEMPLATE/bug_report.md`.
+
+## Local Development
+
+Create a virtual environment and install the development stack:
 
 ```powershell
 python -m venv .venv
 .venv\Scripts\Activate.ps1
-pip install -e .[dev]
+pip install -e .[dev,astro,geo]
 ```
 
-Install the runtime astrology dependency when you are ready to calculate natal charts and transit searches:
-
-```powershell
-pip install -e .[astro]
-```
-
-For later work on geocoding and timezone lookup, install the separate lookup stack:
-
-```powershell
-pip install -e .[geo]
-```
-
-On Windows, the `astro` stack is configured around `pysweph`, which ships wheels for the common setups we are targeting. The optional `geo` stack uses `geopy` plus `tzfpy`, which is a friendlier fit for the Windows workflow we are targeting here.
-
-Run the app:
+Run the desktop app:
 
 ```powershell
 python -m app.main
@@ -73,4 +61,29 @@ pytest
 ruff check .
 ```
 
-Integration tests for the real Swiss Ephemeris backend live in a separate `integration` marker and are intended to run in CI with the optional `astro` dependencies installed.
+Build the Windows installer locally:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build_windows_installer.ps1
+```
+
+## Release Workflow
+
+The repository includes a GitHub Actions workflow that can build the Windows installer on `windows-latest`.
+
+- Manual build: run the `windows-release` workflow from the Actions tab
+- Tagged release: push a tag like `v0.1.0` to build the installer and attach it to a GitHub Release
+
+The default release body template lives in [docs/release-template-pl.md](docs/release-template-pl.md).
+
+## Privacy
+
+AstroLabb stores its SQLite database and bundled ephemeris files locally on the user's machine. The app does not require a hosted backend for the main desktop workflows.
+
+## Credits And License
+
+- App license: AGPL-3.0-or-later
+- Swiss Ephemeris data is distributed under the licensing terms already required by the project stack
+- The bundled astrology SVG symbol template is based on assets from the AGPL-licensed `kerykeion` project
+
+See [LICENSE](LICENSE) for the repository license text.

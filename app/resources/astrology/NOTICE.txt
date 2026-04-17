@@ -1,0 +1,8 @@
+This directory includes a vendored copy of the AGPL-licensed wheel template
+used for astrology SVG symbols.
+
+Source at the time of vendoring:
+`kerykeion/charts/templates/wheel_only.xml`
+
+Upstream project:
+https://www.kerykeion.net/

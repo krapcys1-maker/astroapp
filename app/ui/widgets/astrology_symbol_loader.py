@@ -5,9 +5,15 @@ import re
 from functools import cache, lru_cache
 from pathlib import Path
 
+from app.config.runtime_paths import bundled_resource_path
+
 
 @lru_cache(maxsize=1)
 def _wheel_template_text() -> str:
+    local_template_path = bundled_resource_path("astrology", "wheel_only.xml")
+    if local_template_path.exists():
+        return local_template_path.read_text(encoding="utf-8")
+
     spec = importlib.util.find_spec('kerykeion')
     if spec is None or spec.origin is None:
         raise RuntimeError('kerykeion package not found for symbol asset loading')
