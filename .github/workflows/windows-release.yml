@@ -7,7 +7,7 @@ on:
       - "v*"
 
 jobs:
-  build-windows-installer:
+  build-windows-exe:
     runs-on: windows-latest
 
     steps:
@@ -25,20 +25,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[dev,astro,geo]
 
-      - name: Build Windows installer
+      - name: Build Windows executable
         shell: pwsh
         run: |
-          powershell -ExecutionPolicy Bypass -File .\scripts\build_windows_installer.ps1
+          powershell -ExecutionPolicy Bypass -File .\scripts\build_windows_exe.ps1
 
-      - name: Upload installer artifact
+      - name: Upload executable artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AstroLabb-Windows-Installer
-          path: dist/AstroLabb-Setup-*.exe
+          name: AstroLabb-Windows-Portable
+          path: dist/AstroLabb-*.exe
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           body_path: docs/release-template-pl.md
-          files: dist/AstroLabb-Setup-*.exe
+          files: dist/AstroLabb-*.exe
