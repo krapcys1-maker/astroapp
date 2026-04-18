@@ -2,6 +2,18 @@
 
 AstroLabb is an open-source desktop astrology app built with Python and PySide6 for local natal chart work, client profile management, and transit-to-natal searches.
 
+## Get AstroLabb
+
+[Download The Latest Windows Installer](https://github.com/krapcys1-maker/astroapp/releases/latest)
+
+Use only the file named `AstroLabb-Setup-<version>.exe`.
+
+- Download the `.exe` installer if you want the app
+- Ignore `Source code (zip)` and `Source code (tar.gz)` unless you want the raw project files
+- Windows may show SmartScreen or browser trust warnings because the installer is not code-signed yet
+- If SmartScreen appears, click `More info` and then `Run anyway`
+- If the browser says the file is not commonly downloaded, keep the file only if it came from this repository's Releases page
+
 ## Download For Windows
 
 Download the current installer from [Releases](https://github.com/krapcys1-maker/astroapp/releases/latest) and use the file named `AstroLabb-Setup-<version>.exe`.
@@ -13,6 +25,10 @@ Download the current installer from [Releases](https://github.com/krapcys1-maker
 - If the browser says the file is not commonly downloaded, keep the file and continue only if it came from this repository's Releases page
 
 The installer creates shortcuts and stores app data locally on your machine. New installer versions can also ask for a custom installation folder.
+
+## Preview
+
+![AstroLabb desktop app screenshot](docs/assets/app-window.png)
 
 ## What You Can Do
 
@@ -33,6 +49,15 @@ The project now includes a Windows installer build pipeline that packages:
 - Start Menu and desktop shortcuts created during installation
 
 Installed app data is stored in the current user's local application data directory instead of the install folder, so the app keeps working correctly after installation and updates.
+
+## Installation
+
+1. Open the latest release page.
+2. Download `AstroLabb-Setup-<version>.exe`.
+3. Launch the installer.
+4. Choose the default install location or pick your own folder.
+5. If Windows shows a security prompt, use `More info` and then `Run anyway`.
+6. Start AstroLabb from the desktop shortcut or Start Menu.
 
 ## Download And Test
 

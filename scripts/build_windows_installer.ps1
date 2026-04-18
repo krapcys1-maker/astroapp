@@ -45,6 +45,7 @@ try {
         --clean `
         --windowed `
         --name AstroLabb `
+        --icon "app\resources\branding\astrolabb-icon.ico" `
         --add-data "app\resources;resources" `
         --hidden-import PySide6.QtSvg `
         --hidden-import swisseph `

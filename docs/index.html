@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AstroLabb</title>
+  <meta
+    name="description"
+    content="AstroLabb is a Windows desktop astrology app for client profiles, natal charts, transit searches, and PNG export."
+  >
+  <link rel="icon" type="image/png" href="assets/astrolabb-icon-256.png">
+  <style>
+    :root {
+      --bg: #f2f4ef;
+      --ink: #173a3f;
+      --ink-soft: #42666b;
+      --card: rgba(255, 255, 255, 0.92);
+      --line: rgba(23, 58, 63, 0.12);
+      --accent: #d48c3c;
+      --accent-deep: #be7230;
+      --shadow: 0 24px 80px rgba(15, 36, 40, 0.16);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(212, 140, 60, 0.16), transparent 34%),
+        radial-gradient(circle at top right, rgba(23, 58, 63, 0.1), transparent 32%),
+        linear-gradient(180deg, #f7f7f3 0%, var(--bg) 100%);
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .page {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 64px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 28px;
+      align-items: center;
+      min-height: 78vh;
+    }
+
+    .hero-copy,
+    .hero-shot,
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .hero-copy {
+      padding: 42px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+
+    .brand img {
+      width: 68px;
+      height: 68px;
+      object-fit: contain;
+      border-radius: 18px;
+      background: rgba(23, 58, 63, 0.06);
+      padding: 8px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 14px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(23, 58, 63, 0.08);
+      color: var(--ink-soft);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0 0 16px;
+      font-size: clamp(42px, 6vw, 72px);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+    }
+
+    .lead {
+      margin: 0 0 24px;
+      font-size: 19px;
+      line-height: 1.6;
+      color: var(--ink-soft);
+      max-width: 56ch;
+    }
+
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin: 30px 0 18px;
+    }
+
+    .cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 54px;
+      padding: 0 22px;
+      border-radius: 16px;
+      text-decoration: none;
+      font-weight: 700;
+      transition: transform 120ms ease, background 120ms ease, color 120ms ease;
+    }
+
+    .cta:hover {
+      transform: translateY(-1px);
+    }
+
+    .cta-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .cta-primary:hover {
+      background: var(--accent-deep);
+    }
+
+    .cta-secondary {
+      border: 1px solid var(--line);
+      background: white;
+      color: var(--ink);
+    }
+
+    .mini-note {
+      margin: 0;
+      font-size: 14px;
+      color: var(--ink-soft);
+      line-height: 1.6;
+    }
+
+    .mini-note strong {
+      color: var(--ink);
+    }
+
+    .hero-shot {
+      padding: 18px;
+    }
+
+    .hero-shot img {
+      width: 100%;
+      display: block;
+      border-radius: 20px;
+      border: 1px solid rgba(23, 58, 63, 0.08);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 20px;
+      margin-top: 28px;
+    }
+
+    .panel {
+      padding: 24px;
+    }
+
+    .panel h2,
+    .panel h3 {
+      margin: 0 0 12px;
+      font-size: 22px;
+    }
+
+    .panel p,
+    .panel li {
+      color: var(--ink-soft);
+      line-height: 1.65;
+    }
+
+    .panel ul,
+    .panel ol {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .warning {
+      margin-top: 28px;
+      padding: 22px 24px;
+      border-radius: 24px;
+      background: #fff6ea;
+      border: 1px solid rgba(212, 140, 60, 0.28);
+      color: #734615;
+      box-shadow: 0 16px 40px rgba(188, 114, 48, 0.12);
+    }
+
+    .warning h2 {
+      margin: 0 0 10px;
+      font-size: 24px;
+      color: #5b3612;
+    }
+
+    .footer {
+      margin-top: 32px;
+      text-align: center;
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    @media (max-width: 960px) {
+      .hero {
+        grid-template-columns: 1fr;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="brand">
+          <img src="assets/astrolabb-logo.png" alt="AstroLabb logo">
+          <div>
+            <div class="eyebrow">Desktop Astrology App</div>
+          </div>
+        </div>
+        <h1>AstroLabb</h1>
+        <p class="lead">
+          A Windows desktop app for client profiles, natal charts, transit searches,
+          and chart export. Built for local use, clear workflows, and practical testing.
+        </p>
+        <div class="cta-row">
+          <a class="cta cta-primary" href="https://github.com/krapcys1-maker/astroapp/releases/latest">
+            Download For Windows
+          </a>
+          <a class="cta cta-secondary" href="https://github.com/krapcys1-maker/astroapp">
+            View Source On GitHub
+          </a>
+        </div>
+        <p class="mini-note">
+          <strong>Download only:</strong> <code>AstroLabb-Setup-&lt;version&gt;.exe</code><br>
+          Ignore <code>Source code (zip)</code> and <code>Source code (tar.gz)</code> unless you want the raw repository files.
+        </p>
+      </div>
+      <div class="hero-shot">
+        <img src="assets/app-window.png" alt="AstroLabb app window">
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="panel">
+        <h2>What You Can Do</h2>
+        <ul>
+          <li>Save local client profiles with birth data and notes</li>
+          <li>Search locations and fill coordinates plus timezone</li>
+          <li>Calculate natal charts with planets, houses, and aspects</li>
+          <li>Run transit-to-natal searches across date ranges</li>
+          <li>Export charts to PNG</li>
+        </ul>
+      </article>
+
+      <article class="panel">
+        <h2>How To Install</h2>
+        <ol>
+          <li>Open the latest release page</li>
+          <li>Download the <code>.exe</code> installer</li>
+          <li>Run the installer</li>
+          <li>Pick the default folder or choose your own</li>
+          <li>Launch AstroLabb from the desktop or Start Menu shortcut</li>
+        </ol>
+      </article>
+
+      <article class="panel">
+        <h2>Feedback</h2>
+        <p>
+          Please download it, test it, and report bugs or confusing behavior.
+          Useful reports include screenshots, reproduction steps, and what you expected to happen.
+        </p>
+        <p>
+          <a href="https://github.com/krapcys1-maker/astroapp/issues">Open GitHub Issues</a>
+        </p>
+      </article>
+    </section>
+
+    <section class="warning">
+      <h2>About Windows Security Warnings</h2>
+      <p>
+        AstroLabb is not code-signed yet. Because of that, Windows SmartScreen or your browser may warn that the installer is not commonly downloaded or not yet trusted.
+      </p>
+      <p>
+        If the file came from this repository's Releases page, you can continue with
+        <strong>More info</strong> and then <strong>Run anyway</strong>.
+      </p>
+      <p>
+        The long-term fix is code signing. Until then, these warnings are expected for a small new Windows app.
+      </p>
+    </section>
+
+    <p class="footer">
+      AstroLabb is open source and licensed under AGPL-3.0-or-later.
+    </p>
+  </main>
+</body>
+</html>

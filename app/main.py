@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import sys
 
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
+from app.config.runtime_paths import bundled_resource_path
 from app.config.settings import AppSettings
 from app.engine.ephemeris import SwissEphemerisBackend
 from app.services import LocationLookupService, NatalService, PersonService, TransitService
@@ -16,8 +18,11 @@ def create_application() -> QApplication:
     if app is None:
         app = QApplication(sys.argv)
     app.setStyle("Fusion")
-    app.setApplicationName("astroapp")
-    app.setOrganizationName("astroapp")
+    app.setApplicationName("AstroLabb")
+    app.setOrganizationName("AstroLabb")
+    icon_path = bundled_resource_path("branding", "astrolabb-icon.ico")
+    if icon_path.exists():
+        app.setWindowIcon(QIcon(str(icon_path)))
     return app
 
 
