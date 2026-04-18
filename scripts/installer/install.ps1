@@ -4,9 +4,50 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Resolve-InstallDir {
+    param(
+        [string]$DefaultInstallDir
+    )
+
+    if ($Quiet) {
+        return $DefaultInstallDir
+    }
+
+    Add-Type -AssemblyName System.Windows.Forms
+
+    $defaultParent = Split-Path $DefaultInstallDir -Parent
+    $choice = [System.Windows.Forms.MessageBox]::Show(
+        "AstroLabb can be installed in the default folder:`n`n$DefaultInstallDir`n`nChoose 'Yes' to use it, 'No' to pick another folder, or 'Cancel' to stop installation.",
+        "AstroLabb Setup",
+        [System.Windows.Forms.MessageBoxButtons]::YesNoCancel,
+        [System.Windows.Forms.MessageBoxIcon]::Question
+    )
+
+    if ($choice -eq [System.Windows.Forms.DialogResult]::Cancel) {
+        throw "Installation cancelled by user."
+    }
+
+    if ($choice -eq [System.Windows.Forms.DialogResult]::Yes) {
+        return $DefaultInstallDir
+    }
+
+    $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+    $dialog.Description = "Choose the parent folder for AstroLabb. The installer will create an 'AstroLabb' subfolder there."
+    $dialog.UseDescriptionForTitle = $true
+    $dialog.ShowNewFolderButton = $true
+    $dialog.SelectedPath = $defaultParent
+
+    if ($dialog.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) {
+        throw "Installation cancelled by user."
+    }
+
+    return Join-Path $dialog.SelectedPath "AstroLabb"
+}
+
 $packageRoot = $PSScriptRoot
 $payloadTar = Join-Path $packageRoot "AstroLabb-payload.tar"
-$installDir = Join-Path $env:LOCALAPPDATA "Programs\AstroLabb"
+$defaultInstallDir = Join-Path $env:LOCALAPPDATA "Programs\AstroLabb"
+$installDir = Resolve-InstallDir -DefaultInstallDir $defaultInstallDir
 $startMenuDir = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\AstroLabb"
 $desktopShortcutPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "AstroLabb.lnk"
 $exePath = Join-Path $installDir "AstroLabb.exe"
@@ -49,5 +90,11 @@ $desktopShortcut.WorkingDirectory = $installDir
 $desktopShortcut.Save()
 
 if (-not $Quiet) {
+    [System.Windows.Forms.MessageBox]::Show(
+        "AstroLabb was installed to:`n`n$installDir",
+        "AstroLabb Setup",
+        [System.Windows.Forms.MessageBoxButtons]::OK,
+        [System.Windows.Forms.MessageBoxIcon]::Information
+    ) | Out-Null
     Start-Process -FilePath $exePath -WorkingDirectory $installDir
 }

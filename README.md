@@ -2,6 +2,18 @@
 
 AstroLabb is an open-source desktop astrology app built with Python and PySide6 for local natal chart work, client profile management, and transit-to-natal searches.
 
+## Download For Windows
+
+Download the current installer from [Releases](https://github.com/krapcys1-maker/astroapp/releases/latest) and use the file named `AstroLabb-Setup-<version>.exe`.
+
+- Download only the `.exe` installer if you want to install the app
+- Do not download `Source code (zip)` or `Source code (tar.gz)` unless you want the raw project files
+- Because the installer is not code-signed yet, Windows or the browser may show security warnings before launch
+- If SmartScreen appears, click `More info` and then `Run anyway`
+- If the browser says the file is not commonly downloaded, keep the file and continue only if it came from this repository's Releases page
+
+The installer creates shortcuts and stores app data locally on your machine. New installer versions can also ask for a custom installation folder.
+
 ## What You Can Do
 
 - Save local client profiles with birth date, time, coordinates, timezone, and notes
