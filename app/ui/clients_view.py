@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QDate, Qt, QTime, Signal
 from PySide6.QtWidgets import (
+    QBoxLayout,
     QDateEdit,
     QDoubleSpinBox,
     QFormLayout,
@@ -13,6 +14,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPushButton,
+    QScrollArea,
     QSizePolicy,
     QTextEdit,
     QTimeEdit,
@@ -67,17 +69,24 @@ class ClientsView(QWidget):
         outer_layout.setContentsMargins(0, 0, 0, 0)
         outer_layout.setSpacing(0)
 
-        centered_layout = QHBoxLayout()
+        scroll_area = QScrollArea(self)
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QScrollArea.Shape.NoFrame)
+        outer_layout.addWidget(scroll_area, 1)
+
+        scroll_content = QWidget()
+        scroll_area.setWidget(scroll_content)
+
+        centered_layout = QHBoxLayout(scroll_content)
         centered_layout.setContentsMargins(0, 0, 0, 0)
         centered_layout.setSpacing(0)
-        centered_layout.addStretch(1)
 
         page = QWidget(self)
         page.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        page.setMaximumWidth(1320)
+        page.setMaximumWidth(1680)
         layout = QVBoxLayout(page)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(16)
+        layout.setSpacing(12)
 
         title = QLabel("Clients")
         title.setObjectName("pageTitle")
@@ -91,14 +100,16 @@ class ClientsView(QWidget):
         subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
 
-        body = QHBoxLayout()
-        body.setSpacing(16)
+        self._page = page
+        self._body_layout = QBoxLayout(QBoxLayout.Direction.LeftToRight)
+        self._body_layout.setSpacing(14)
 
-        list_card = QFrame(page)
-        list_card.setObjectName("sectionCard")
-        list_card.setMinimumWidth(280)
-        list_card.setMaximumWidth(320)
-        list_layout = QVBoxLayout(list_card)
+        self._list_card = QFrame(page)
+        self._list_card.setObjectName("sectionCard")
+        self._list_card.setMinimumWidth(280)
+        self._list_card.setMaximumWidth(340)
+        self._list_card.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        list_layout = QVBoxLayout(self._list_card)
         list_layout.setContentsMargins(18, 18, 18, 18)
         list_layout.setSpacing(12)
 
@@ -111,7 +122,7 @@ class ClientsView(QWidget):
         list_help.setWordWrap(True)
         list_layout.addWidget(list_help)
 
-        self._clients_list = QListWidget(list_card)
+        self._clients_list = QListWidget(self._list_card)
         self._clients_list.setObjectName("clientsList")
         self._clients_list.currentItemChanged.connect(self._on_person_changed)
         list_layout.addWidget(self._clients_list, 1)
@@ -121,12 +132,13 @@ class ClientsView(QWidget):
         editor_wrapper_layout.setContentsMargins(0, 0, 0, 0)
         editor_wrapper_layout.setSpacing(0)
 
-        editor_card = QFrame(editor_wrapper)
-        editor_card.setObjectName("sectionCard")
-        editor_card.setMaximumWidth(940)
-        editor_layout = QVBoxLayout(editor_card)
-        editor_layout.setContentsMargins(22, 22, 22, 22)
-        editor_layout.setSpacing(14)
+        self._editor_card = QFrame(editor_wrapper)
+        self._editor_card.setObjectName("sectionCard")
+        self._editor_card.setMaximumWidth(1020)
+        self._editor_card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        editor_layout = QVBoxLayout(self._editor_card)
+        editor_layout.setContentsMargins(20, 20, 20, 20)
+        editor_layout.setSpacing(10)
 
         editor_heading = QLabel("Profile details")
         editor_heading.setObjectName("sectionHeading")
@@ -142,40 +154,44 @@ class ClientsView(QWidget):
 
         profile_group = QGroupBox("Profile")
         profile_fields = QFormLayout(profile_group)
-        profile_fields.setContentsMargins(16, 18, 16, 16)
-        profile_fields.setSpacing(10)
+        profile_fields.setContentsMargins(14, 16, 14, 14)
+        profile_fields.setSpacing(8)
 
         self._name_input = QLineEdit()
         self._name_input.setPlaceholderText("Client name")
         self._notes_input = QTextEdit()
-        self._notes_input.setMinimumHeight(120)
+        self._notes_input.setMinimumHeight(96)
         self._notes_input.setPlaceholderText("Context, reminders, or reading notes")
         profile_fields.addRow("Name", self._name_input)
         profile_fields.addRow("Notes", self._notes_input)
 
         birth_group = QGroupBox("Birth data")
         birth_layout = QVBoxLayout(birth_group)
-        birth_layout.setContentsMargins(16, 18, 16, 16)
-        birth_layout.setSpacing(10)
+        birth_layout.setContentsMargins(14, 16, 14, 14)
+        birth_layout.setSpacing(8)
 
-        lookup_controls = QHBoxLayout()
+        self._lookup_controls = QBoxLayout(QBoxLayout.Direction.LeftToRight)
         self._city_lookup_input = QLineEdit()
         self._city_lookup_input.setPlaceholderText("Search a city, town, or village")
         self._city_lookup_button = QPushButton("Find city")
         self._city_lookup_button.setObjectName("secondaryButton")
         self._city_lookup_button.clicked.connect(self._on_city_lookup_clicked)
-        lookup_controls.addWidget(self._city_lookup_input, 1)
-        lookup_controls.addWidget(self._city_lookup_button)
-        birth_layout.addLayout(lookup_controls)
+        self._city_lookup_button.setSizePolicy(
+            QSizePolicy.Policy.Maximum,
+            QSizePolicy.Policy.Fixed,
+        )
+        self._lookup_controls.addWidget(self._city_lookup_input, 1)
+        self._lookup_controls.addWidget(self._city_lookup_button)
+        birth_layout.addLayout(self._lookup_controls)
 
         self._location_results_list = QListWidget()
         self._location_results_list.setObjectName("locationResultsList")
-        self._location_results_list.setMaximumHeight(120)
+        self._location_results_list.setMaximumHeight(96)
         self._location_results_list.currentRowChanged.connect(self._on_location_selected)
         birth_layout.addWidget(self._location_results_list)
 
         birth_fields = QFormLayout()
-        birth_fields.setSpacing(10)
+        birth_fields.setSpacing(8)
 
         self._birth_date_input = QDateEdit()
         self._birth_date_input.setCalendarPopup(True)
@@ -226,18 +242,39 @@ class ClientsView(QWidget):
         editor_layout.addWidget(self._status_label)
         editor_layout.addStretch(1)
 
-        editor_wrapper_layout.addWidget(editor_card)
+        editor_wrapper_layout.addWidget(self._editor_card)
         editor_wrapper_layout.addStretch(1)
 
-        body.addWidget(list_card)
-        body.addWidget(editor_wrapper, 1)
-        layout.addLayout(body)
+        self._body_layout.addWidget(self._list_card)
+        self._body_layout.addWidget(editor_wrapper, 1)
+        layout.addLayout(self._body_layout)
 
         centered_layout.addWidget(page, 1)
-        centered_layout.addStretch(1)
-        outer_layout.addLayout(centered_layout)
-        outer_layout.addStretch(1)
         self._city_lookup_button.setEnabled(self._location_lookup_service is not None)
+        self._update_responsive_layout()
+
+    def resizeEvent(self, event) -> None:  # type: ignore[override]
+        super().resizeEvent(event)
+        self._update_responsive_layout()
+
+    def _update_responsive_layout(self) -> None:
+        page_width = self._page.width()
+        compact_page = page_width < 1200
+        compact_lookup = page_width < 900
+
+        self._body_layout.setDirection(
+            QBoxLayout.Direction.TopToBottom
+            if compact_page
+            else QBoxLayout.Direction.LeftToRight
+        )
+        self._lookup_controls.setDirection(
+            QBoxLayout.Direction.TopToBottom
+            if compact_lookup
+            else QBoxLayout.Direction.LeftToRight
+        )
+        self._list_card.setMinimumWidth(0 if compact_page else 280)
+        self._list_card.setMaximumWidth(16777215 if compact_page else 340)
+        self._editor_card.setMaximumWidth(16777215 if compact_page else 1020)
 
     def _set_empty_form(self) -> None:
         self._current_person_id = None

@@ -4,6 +4,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QDate, QTime
 from PySide6.QtWidgets import (
+    QBoxLayout,
     QCheckBox,
     QComboBox,
     QDateEdit,
@@ -107,14 +108,14 @@ class NatalView(QWidget):
         centered_layout = QHBoxLayout(scroll_content)
         centered_layout.setContentsMargins(0, 0, 0, 0)
         centered_layout.setSpacing(0)
-        centered_layout.addStretch(1)
 
         page = QWidget(self)
         page.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        page.setMaximumWidth(1360)
+        page.setMaximumWidth(1680)
         layout = QVBoxLayout(page)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(16)
+        layout.setSpacing(12)
+        self._page = page
 
         title = QLabel("Natal Chart")
         title.setObjectName("pageTitle")
@@ -128,18 +129,18 @@ class NatalView(QWidget):
         subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
 
-        controls_card = QFrame(page)
-        controls_card.setObjectName("sectionCard")
-        controls_layout = QVBoxLayout(controls_card)
-        controls_layout.setContentsMargins(22, 22, 22, 22)
-        controls_layout.setSpacing(14)
+        self._controls_card = QFrame(page)
+        self._controls_card.setObjectName("sectionCard")
+        controls_layout = QVBoxLayout(self._controls_card)
+        controls_layout.setContentsMargins(20, 20, 20, 20)
+        controls_layout.setSpacing(10)
 
         controls_heading = QLabel("Chart setup")
         controls_heading.setObjectName("sectionHeading")
         controls_layout.addWidget(controls_heading)
 
         form = QFormLayout()
-        form.setSpacing(10)
+        form.setSpacing(8)
         self._person_selector = QComboBox()
         self._person_selector.currentIndexChanged.connect(self._load_saved_chart)
         self._house_system_label = QLabel("Placidus")
@@ -169,8 +170,8 @@ class NatalView(QWidget):
 
         transit_group = QGroupBox("Transit overlay")
         transit_layout = QFormLayout(transit_group)
-        transit_layout.setContentsMargins(16, 18, 16, 16)
-        transit_layout.setSpacing(10)
+        transit_layout.setContentsMargins(14, 16, 14, 14)
+        transit_layout.setSpacing(8)
         self._transit_date_input = QDateEdit()
         self._transit_date_input.setCalendarPopup(True)
         self._transit_date_input.setDate(QDate.currentDate())
@@ -209,14 +210,18 @@ class NatalView(QWidget):
         self._meta_label.setWordWrap(True)
         controls_layout.addWidget(self._meta_label)
 
-        layout.addWidget(controls_card)
-
         chart_group = QGroupBox("Chart wheel")
         chart_layout = QVBoxLayout(chart_group)
         chart_layout.setContentsMargins(16, 18, 16, 16)
         self._chart_widget = NatalChartWidget(chart_group)
+        self._chart_widget.setMinimumHeight(680)
         chart_layout.addWidget(self._chart_widget)
-        layout.addWidget(chart_group)
+        self._top_row = QBoxLayout(QBoxLayout.Direction.LeftToRight)
+        self._top_row.setSpacing(16)
+        self._controls_card.setMaximumWidth(600)
+        self._top_row.addWidget(self._controls_card, 0)
+        self._top_row.addWidget(chart_group, 1)
+        layout.addLayout(self._top_row)
 
         self._planets_table = self._create_table(
             "planetsTable",
@@ -231,13 +236,13 @@ class NatalView(QWidget):
             ["Body A", "Body B", "Aspect", "Orb", "Phase"],
         )
 
-        planets_group = QGroupBox("Planets")
-        planets_layout = QVBoxLayout(planets_group)
+        self._planets_group = QGroupBox("Planets")
+        planets_layout = QVBoxLayout(self._planets_group)
         planets_layout.setContentsMargins(16, 18, 16, 16)
         planets_layout.addWidget(self._planets_table)
 
-        houses_group = QGroupBox("Houses")
-        houses_layout = QVBoxLayout(houses_group)
+        self._houses_group = QGroupBox("Houses")
+        houses_layout = QVBoxLayout(self._houses_group)
         houses_layout.setContentsMargins(16, 18, 16, 16)
         houses_layout.addWidget(self._houses_table)
 
@@ -255,14 +260,23 @@ class NatalView(QWidget):
         transit_hits_layout.setContentsMargins(16, 18, 16, 16)
         transit_hits_layout.addWidget(self._transit_hits_table)
 
-        layout.addWidget(planets_group)
-        layout.addWidget(houses_group)
-        layout.addWidget(aspects_group)
-        layout.addWidget(transit_hits_group)
+        self._tables_top_row = QBoxLayout(QBoxLayout.Direction.LeftToRight)
+        self._tables_top_row.setSpacing(16)
+        self._planets_group.setMinimumWidth(520)
+        self._houses_group.setMaximumWidth(320)
+        self._tables_top_row.addWidget(self._planets_group, 1)
+        self._tables_top_row.addWidget(self._houses_group, 0)
+
+        self._tables_bottom_row = QBoxLayout(QBoxLayout.Direction.LeftToRight)
+        self._tables_bottom_row.setSpacing(16)
+        self._tables_bottom_row.addWidget(aspects_group, 1)
+        self._tables_bottom_row.addWidget(transit_hits_group, 1)
+
+        layout.addLayout(self._tables_top_row)
+        layout.addLayout(self._tables_bottom_row)
         layout.addStretch(1)
 
         centered_layout.addWidget(page, 1)
-        centered_layout.addStretch(1)
         service_available = self._natal_service is not None
         self._calculate_button.setEnabled(service_available)
         self._refresh_button.setEnabled(service_available)
@@ -271,6 +285,35 @@ class NatalView(QWidget):
         self._clear_transits_button.setEnabled(False)
         if not service_available and self._natal_error:
             self._set_status(self._natal_error)
+        self._update_responsive_layout()
+
+    def resizeEvent(self, event) -> None:  # type: ignore[override]
+        super().resizeEvent(event)
+        self._update_responsive_layout()
+
+    def _update_responsive_layout(self) -> None:
+        page_width = self._page.width()
+        compact_top = page_width < 1260
+        compact_tables = page_width < 1380
+
+        self._top_row.setDirection(
+            QBoxLayout.Direction.TopToBottom
+            if compact_top
+            else QBoxLayout.Direction.LeftToRight
+        )
+        self._tables_top_row.setDirection(
+            QBoxLayout.Direction.TopToBottom
+            if compact_tables
+            else QBoxLayout.Direction.LeftToRight
+        )
+        self._tables_bottom_row.setDirection(
+            QBoxLayout.Direction.TopToBottom
+            if compact_tables
+            else QBoxLayout.Direction.LeftToRight
+        )
+        self._controls_card.setMaximumWidth(16777215 if compact_top else 600)
+        self._planets_group.setMinimumWidth(0 if compact_tables else 520)
+        self._houses_group.setMaximumWidth(16777215 if compact_tables else 320)
 
     def _chart_debug_toggled(self, checked: bool) -> None:
         self._chart_widget.set_debug_overlay_enabled(checked)

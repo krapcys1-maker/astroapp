@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 import pytest
 from PySide6.QtCore import QPointF
+from PySide6.QtWidgets import QBoxLayout
 
 from app.config.settings import AppSettings
 from app.models.aspect import Aspect
@@ -213,6 +214,41 @@ def test_main_window_client_and_natal_workflow(tmp_path) -> None:
     assert "found 1 transit events" in transit_view._status_label.text().lower()
     assert transit_view._recent_queries_selector.count() == 2
     assert transit_service.queries[0].selected_transit_bodies == ("Mars",)
+
+
+def test_main_window_switches_to_compact_layouts_on_narrow_width(tmp_path) -> None:
+    from app.main import create_application
+    from app.ui.main_window import MainWindow
+
+    application = create_application()
+    settings = AppSettings.from_environment()
+    database_path = tmp_path / "ui-compact.sqlite3"
+    initialize_database(database_path)
+    person_service = PersonService(database_path)
+    window = MainWindow(
+        settings=settings,
+        person_service=person_service,
+        location_service=FakeLocationLookupService(),
+        natal_service=FakeNatalService(),
+        transit_service=FakeTransitService(),
+    )
+    window.show()
+    window.resize(960, 720)
+    application.processEvents()
+
+    assert window._clients_view._body_layout.direction() == QBoxLayout.Direction.TopToBottom
+    assert window._clients_view._lookup_controls.direction() == QBoxLayout.Direction.TopToBottom
+
+    window._navigation.setCurrentRow(1)
+    application.processEvents()
+    assert window._natal_view._top_row.direction() == QBoxLayout.Direction.TopToBottom
+    assert window._natal_view._tables_top_row.direction() == QBoxLayout.Direction.TopToBottom
+    assert window._natal_view._tables_bottom_row.direction() == QBoxLayout.Direction.TopToBottom
+
+    window._navigation.setCurrentRow(2)
+    application.processEvents()
+    assert window._transit_view._top_row.direction() == QBoxLayout.Direction.TopToBottom
+    assert window._transit_view._selectors_layout.direction() == QBoxLayout.Direction.TopToBottom
 
 
 def test_natal_chart_widget_exports_png(tmp_path) -> None:

@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import QDate
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QBoxLayout,
     QComboBox,
     QDateEdit,
     QDoubleSpinBox,
@@ -101,14 +102,14 @@ class TransitSearchView(QWidget):
         centered_layout = QHBoxLayout(scroll_content)
         centered_layout.setContentsMargins(0, 0, 0, 0)
         centered_layout.setSpacing(0)
-        centered_layout.addStretch(1)
 
         page = QWidget(self)
         page.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        page.setMaximumWidth(1360)
+        page.setMaximumWidth(1680)
         layout = QVBoxLayout(page)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(16)
+        layout.setSpacing(12)
+        self._page = page
 
         title = QLabel("Transit Search")
         title.setObjectName("pageTitle")
@@ -122,18 +123,18 @@ class TransitSearchView(QWidget):
         subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
 
-        query_card = QFrame(page)
-        query_card.setObjectName("sectionCard")
-        query_layout = QVBoxLayout(query_card)
-        query_layout.setContentsMargins(22, 22, 22, 22)
-        query_layout.setSpacing(14)
+        self._query_card = QFrame(page)
+        self._query_card.setObjectName("sectionCard")
+        query_layout = QVBoxLayout(self._query_card)
+        query_layout.setContentsMargins(20, 20, 20, 20)
+        query_layout.setSpacing(10)
 
         query_heading = QLabel("Search setup")
         query_heading.setObjectName("sectionHeading")
         query_layout.addWidget(query_heading)
 
         form = QFormLayout()
-        form.setSpacing(10)
+        form.setSpacing(8)
         self._person_selector = QComboBox()
         self._person_selector.currentIndexChanged.connect(self._refresh_recent_queries)
         self._recent_queries_selector = QComboBox()
@@ -156,14 +157,14 @@ class TransitSearchView(QWidget):
 
         form.addRow("Person", self._person_selector)
         form.addRow("Recent searches", self._recent_queries_selector)
-        form.addRow("Start date", self._start_date_input)
-        form.addRow("End date", self._end_date_input)
+        form.addRow("Search window start", self._start_date_input)
+        form.addRow("Search window end", self._end_date_input)
         form.addRow("Orb", self._orb_input)
         form.addRow("Filter", self._filter_input)
         query_layout.addLayout(form)
 
-        selectors = QHBoxLayout()
-        selectors.setSpacing(12)
+        self._selectors_layout = QBoxLayout(QBoxLayout.Direction.LeftToRight)
+        self._selectors_layout.setSpacing(12)
         self._transit_bodies_list = self._create_multi_select_list(
             "transitBodiesList",
             BODY_OPTIONS,
@@ -176,10 +177,14 @@ class TransitSearchView(QWidget):
             "aspectTypesList",
             ASPECT_OPTIONS,
         )
-        selectors.addWidget(self._wrap_selector("Transit bodies", self._transit_bodies_list))
-        selectors.addWidget(self._wrap_selector("Natal bodies", self._natal_bodies_list))
-        selectors.addWidget(self._wrap_selector("Aspects", self._aspects_list))
-        query_layout.addLayout(selectors)
+        self._selectors_layout.addWidget(
+            self._wrap_selector("Transit bodies", self._transit_bodies_list)
+        )
+        self._selectors_layout.addWidget(
+            self._wrap_selector("Natal bodies", self._natal_bodies_list)
+        )
+        self._selectors_layout.addWidget(self._wrap_selector("Aspects", self._aspects_list))
+        query_layout.addLayout(self._selectors_layout)
 
         actions = QHBoxLayout()
         self._search_button = QPushButton("Run transit search")
@@ -200,8 +205,6 @@ class TransitSearchView(QWidget):
         self._status_label.setWordWrap(True)
         query_layout.addWidget(self._status_label)
 
-        layout.addWidget(query_card)
-
         results_group = QGroupBox("Results")
         results_layout = QVBoxLayout(results_group)
         results_layout.setContentsMargins(16, 18, 16, 16)
@@ -212,9 +215,9 @@ class TransitSearchView(QWidget):
                 "Transit body",
                 "Natal body",
                 "Aspect",
-                "Start",
+                "Transit start",
                 "Exact",
-                "End",
+                "Transit end",
                 "Duration",
                 "Exact orb",
                 "Phase",
@@ -227,11 +230,17 @@ class TransitSearchView(QWidget):
         self._results_table.verticalHeader().setVisible(False)
         self._results_table.setMinimumHeight(280)
         results_layout.addWidget(self._results_table)
-        layout.addWidget(results_group)
+        self._top_row = QBoxLayout(QBoxLayout.Direction.LeftToRight)
+        self._top_row.setSpacing(16)
+        self._query_card.setMaximumWidth(620)
+        self._results_group = results_group
+        self._results_group.setMinimumWidth(720)
+        self._top_row.addWidget(self._query_card, 0)
+        self._top_row.addWidget(self._results_group, 1)
+        layout.addLayout(self._top_row)
         layout.addStretch(1)
 
         centered_layout.addWidget(page, 1)
-        centered_layout.addStretch(1)
         self._select_default_bodies(self._transit_bodies_list)
         self._select_default_bodies(self._natal_bodies_list)
         self._select_all(self._aspects_list)
@@ -240,6 +249,29 @@ class TransitSearchView(QWidget):
         self._sort_exact_button.setEnabled(service_available)
         if not service_available and self._transit_error:
             self._set_status(self._transit_error)
+        self._update_responsive_layout()
+
+    def resizeEvent(self, event) -> None:  # type: ignore[override]
+        super().resizeEvent(event)
+        self._update_responsive_layout()
+
+    def _update_responsive_layout(self) -> None:
+        page_width = self._page.width()
+        compact_top = page_width < 1320
+        compact_selectors = page_width < 980
+
+        self._top_row.setDirection(
+            QBoxLayout.Direction.TopToBottom
+            if compact_top
+            else QBoxLayout.Direction.LeftToRight
+        )
+        self._selectors_layout.setDirection(
+            QBoxLayout.Direction.TopToBottom
+            if compact_selectors
+            else QBoxLayout.Direction.LeftToRight
+        )
+        self._query_card.setMaximumWidth(16777215 if compact_top else 620)
+        self._results_group.setMinimumWidth(0 if compact_top else 720)
 
     @staticmethod
     def _create_multi_select_list(object_name: str, values: tuple[str, ...]) -> QListWidget:

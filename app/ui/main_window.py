@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
     QListWidget,
     QMainWindow,
+    QSizePolicy,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -42,25 +44,30 @@ class MainWindow(QMainWindow):
         self._location_error = location_error
         self._natal_error = natal_error
         self._transit_error = transit_error
-        self.setWindowTitle("astroapp")
-        self.resize(1200, 760)
+        self.setWindowTitle("AstroLabb")
         self._build_ui()
+        self._apply_initial_geometry()
 
     def _build_ui(self) -> None:
         shell = QWidget(self)
         shell.setObjectName("appShell")
         shell_layout = QHBoxLayout(shell)
-        shell_layout.setContentsMargins(18, 18, 18, 18)
-        shell_layout.setSpacing(18)
+        shell_layout.setContentsMargins(14, 14, 14, 14)
+        shell_layout.setSpacing(14)
 
         sidebar = QFrame(shell)
         sidebar.setObjectName("sidebarCard")
-        sidebar.setFixedWidth(250)
+        sidebar.setMinimumWidth(220)
+        sidebar.setMaximumWidth(280)
+        sidebar.setSizePolicy(
+            QSizePolicy.Policy.Preferred,
+            QSizePolicy.Policy.Expanding,
+        )
         sidebar_layout = QVBoxLayout(sidebar)
-        sidebar_layout.setContentsMargins(18, 18, 18, 18)
-        sidebar_layout.setSpacing(16)
+        sidebar_layout.setContentsMargins(20, 20, 20, 20)
+        sidebar_layout.setSpacing(18)
 
-        brand_title = QLabel("astroapp")
+        brand_title = QLabel("AstroLabb")
         brand_title.setObjectName("brandTitle")
         sidebar_layout.addWidget(brand_title)
 
@@ -86,7 +93,7 @@ class MainWindow(QMainWindow):
         content_card = QFrame(shell)
         content_card.setObjectName("contentCard")
         content_layout = QVBoxLayout(content_card)
-        content_layout.setContentsMargins(20, 20, 20, 20)
+        content_layout.setContentsMargins(24, 24, 24, 24)
         content_layout.setSpacing(0)
 
         self._pages = QStackedWidget(content_card)
@@ -126,60 +133,83 @@ class MainWindow(QMainWindow):
         if index >= 0:
             self._pages.setCurrentIndex(index)
 
+    def _apply_initial_geometry(self) -> None:
+        screen = self.screen() or QGuiApplication.primaryScreen()
+        if screen is None:
+            self.resize(1280, 800)
+            return
+        available = screen.availableGeometry()
+        width = min(1440, max(720, available.width() - 48))
+        height = min(860, max(560, available.height() - 64))
+        width = min(width, available.width())
+        height = min(height, available.height())
+        self.resize(width, height)
+        self.move(
+            available.x() + max(0, (available.width() - width) // 2),
+            available.y() + max(0, (available.height() - height) // 2),
+        )
+
 
 def _main_window_stylesheet() -> str:
     return """
         QMainWindow, QWidget#appShell {
-            background: #f3ede4;
-            color: #22302d;
+            background: #eef2f7;
+            color: #1f2937;
         }
-        QFrame#sidebarCard, QFrame#contentCard, QFrame#sectionCard {
-            background: #fffdf9;
-            border: 1px solid #e4d7c7;
-            border-radius: 18px;
+        QFrame#sidebarCard {
+            background: #173a3f;
+            border: 1px solid #123037;
+            border-radius: 24px;
+        }
+        QFrame#contentCard, QFrame#sectionCard {
+            background: #ffffff;
+            border: 1px solid #dfe7f1;
+            border-radius: 24px;
         }
         QLabel#brandTitle {
-            color: #143f39;
-            font-family: Georgia;
-            font-size: 24px;
+            color: #f8fafc;
+            font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+            font-size: 27px;
             font-weight: 700;
+            letter-spacing: 0.6px;
         }
         QLabel#brandSubtitle {
-            color: #566660;
+            color: #c9d6db;
             font-size: 12px;
             line-height: 1.4;
         }
         QLabel#sidebarHint {
-            color: #6d7b77;
+            color: #b6c6cc;
             font-size: 11px;
             line-height: 1.4;
         }
         QLabel#pageTitle {
-            color: #163f39;
-            font-family: Georgia;
-            font-size: 24px;
+            color: #0f172a;
+            font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+            font-size: 26px;
             font-weight: 700;
+            letter-spacing: 0.3px;
         }
         QLabel#pageSubtitle {
-            color: #61706a;
+            color: #64748b;
             font-size: 12px;
             line-height: 1.4;
             padding-bottom: 6px;
         }
         QLabel#sectionHeading {
-            color: #163f39;
+            color: #0f172a;
             font-size: 13px;
             font-weight: 600;
         }
         QLabel#statusBanner {
-            background: #f6efdf;
-            color: #594a2f;
-            border: 1px solid #ead9af;
+            background: #fff7e8;
+            color: #7c5a1c;
+            border: 1px solid #f2dfb1;
             border-radius: 12px;
             padding: 10px 12px;
         }
         QLabel#metaLabel {
-            color: #54615d;
+            color: #667085;
             font-size: 12px;
             padding: 2px 0 4px 0;
         }
@@ -187,26 +217,26 @@ def _main_window_stylesheet() -> str:
             background: transparent;
             border: none;
             outline: none;
-            padding: 2px 0;
+            padding: 6px 0;
         }
         QListWidget#mainNavigation::item {
-            color: #26413b;
-            border-radius: 12px;
-            margin: 2px 0;
-            padding: 12px 14px;
+            color: #e6eef1;
+            border-radius: 16px;
+            margin: 4px 0;
+            padding: 14px 16px;
         }
         QListWidget#mainNavigation::item:selected {
-            background: #deeee8;
-            color: #143f39;
+            background: #f8fafc;
+            color: #173a3f;
             font-weight: 600;
         }
         QListWidget#mainNavigation::item:hover:!selected {
-            background: #f1f7f4;
+            background: rgba(255, 255, 255, 0.08);
         }
         QGroupBox {
-            background: #fffdf9;
-            border: 1px solid #e6dacb;
-            border-radius: 14px;
+            background: #ffffff;
+            border: 1px solid #e8edf4;
+            border-radius: 18px;
             margin-top: 12px;
             padding-top: 10px;
             font-weight: 600;
@@ -215,7 +245,7 @@ def _main_window_stylesheet() -> str:
             subcontrol-origin: margin;
             left: 12px;
             padding: 0 4px;
-            color: #244641;
+            color: #334155;
         }
         QLineEdit,
         QTextEdit,
@@ -225,54 +255,69 @@ def _main_window_stylesheet() -> str:
         QDoubleSpinBox,
         QTableWidget,
         QListWidget {
-            background: #fffdfa;
-            border: 1px solid #d6cabd;
-            border-radius: 10px;
+            background: #ffffff;
+            border: 1px solid #dbe3ee;
+            border-radius: 12px;
             padding: 6px 8px;
-            selection-background-color: #deeee8;
-            selection-color: #143f39;
+            selection-background-color: #e7f0ee;
+            selection-color: #153f3a;
+        }
+        QListWidget#clientsList,
+        QListWidget#locationResultsList,
+        QListWidget#transitBodiesList,
+        QListWidget#natalBodiesList,
+        QListWidget#aspectTypesList {
+            background: #fbfdff;
+        }
+        QLineEdit:focus,
+        QTextEdit:focus,
+        QComboBox:focus,
+        QDateEdit:focus,
+        QTimeEdit:focus,
+        QDoubleSpinBox:focus {
+            border: 1px solid #8cb8ae;
         }
         QTextEdit {
             padding: 8px 10px;
         }
         QTableWidget {
-            gridline-color: #ece3d9;
+            gridline-color: #edf2f7;
             padding: 0;
         }
         QHeaderView::section {
-            background: #f7f0e7;
-            color: #43514d;
+            background: #f8fafc;
+            color: #475569;
             border: none;
-            border-right: 1px solid #eadfd2;
-            border-bottom: 1px solid #eadfd2;
+            border-right: 1px solid #e6ebf2;
+            border-bottom: 1px solid #e6ebf2;
             padding: 8px 10px;
             font-weight: 600;
         }
         QPushButton {
-            background: #163f39;
+            background: #153f3a;
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 10px 16px;
             font-weight: 600;
         }
         QPushButton:hover {
-            background: #1d4d45;
+            background: #1d4f49;
         }
         QPushButton:pressed {
-            background: #0f332d;
+            background: #113530;
         }
         QPushButton:disabled {
-            background: #b4b9b7;
-            color: #f5f5f5;
+            background: #c7ced8;
+            color: #f8fafc;
         }
         QPushButton#secondaryButton {
-            background: #fffdf9;
-            color: #163f39;
-            border: 1px solid #d6cabd;
+            background: #ffffff;
+            color: #153f3a;
+            border: 1px solid #dbe3ee;
         }
         QPushButton#secondaryButton:hover {
-            background: #f8f2ea;
+            background: #f7fafc;
         }
         QAbstractSpinBox::up-button,
         QAbstractSpinBox::down-button,

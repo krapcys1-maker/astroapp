@@ -29,6 +29,6 @@ def test_main_window_smoke(tmp_path) -> None:
         transit_error="Swiss backend unavailable in smoke test.",
     )
 
-    assert application.applicationName() == "astroapp"
-    assert window.windowTitle() == "astroapp"
+    assert application.applicationName() == "AstroLabb"
+    assert window.windowTitle() == "AstroLabb"
     assert window.centralWidget() is not None
